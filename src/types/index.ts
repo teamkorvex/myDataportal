@@ -2,9 +2,8 @@ export interface User {
   id: string;
   username: string;
   email?: string;
-  twoFactorCode: string;
   createdAt: string;
-  authType: 'local' | 'discord';
+  authType: 'discord';
   discordId?: string;
   discordAvatar?: string;
   isPremium: boolean;
@@ -30,18 +29,6 @@ export interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-}
-
-export interface LoginCredentials {
-  username: string;
-  password: string;
-}
-
-export interface RegisterData {
-  username: string;
-  email: string;
-  password: string;
-  twoFactorCode: string;
 }
 
 export interface DiscordUser {

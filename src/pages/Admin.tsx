@@ -46,7 +46,6 @@ export function Admin() {
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [editUsername, setEditUsername] = useState('');
   const [editEmail, setEditEmail] = useState('');
-  const [editTwoFactorCode, setEditTwoFactorCode] = useState('');
   const [editIsPremium, setEditIsPremium] = useState(false);
   const [editIsSuspended, setEditIsSuspended] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
@@ -85,7 +84,6 @@ export function Admin() {
     setSelectedUser(userData);
     setEditUsername(userData.username);
     setEditEmail(userData.email || '');
-    setEditTwoFactorCode(userData.twoFactorCode);
     setEditIsPremium(userData.isPremium);
     setEditIsSuspended(userData.isSuspended);
     setSuccessMessage('');
@@ -107,9 +105,6 @@ export function Admin() {
     }
     if (editEmail !== (selectedUser.email || '')) {
       updates.email = editEmail;
-    }
-    if (editTwoFactorCode !== selectedUser.twoFactorCode) {
-      updates.twoFactorCode = editTwoFactorCode;
     }
     if (editIsPremium !== selectedUser.isPremium) {
       updates.isPremium = editIsPremium;
@@ -402,7 +397,7 @@ export function Admin() {
                     )}
                   </div>
                   <div className="col-span-2 text-sm text-muted-foreground">
-                    {userData.authType === 'discord' ? 'Discord' : 'Local'}
+                    Discord
                   </div>
                   <div className="col-span-2 flex justify-end gap-1">
                     <Button
@@ -490,19 +485,6 @@ export function Admin() {
                 value={editEmail}
                 onChange={(e) => setEditEmail(e.target.value)}
                 className="bg-secondary border-border"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="edit2FA" className="text-xs uppercase tracking-wider text-muted-foreground">
-                2FA Code
-              </Label>
-              <Input
-                id="edit2FA"
-                value={editTwoFactorCode}
-                onChange={(e) => setEditTwoFactorCode(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                className="bg-secondary border-border text-center tracking-[0.5em] font-mono"
-                maxLength={4}
               />
             </div>
 
@@ -619,14 +601,6 @@ export function Admin() {
                   <div>
                     <p className="text-xs text-muted-foreground uppercase tracking-wider">Email</p>
                     <p className="text-sm text-foreground">{selectedUser.email || 'Not provided'}</p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3 p-3 bg-secondary/50 rounded">
-                  <Lock className="w-4 h-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-xs text-muted-foreground uppercase tracking-wider">2FA Code</p>
-                    <p className="text-sm text-foreground font-mono">{selectedUser.twoFactorCode}</p>
                   </div>
                 </div>
 

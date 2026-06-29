@@ -1,15 +1,11 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import type { User, LoginCredentials, RegisterData, DiscordUser } from '@/types';
+import type { User, DiscordUser } from '@/types';
 
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  pendingUser: User | null;
   isAdminAuthenticated: boolean;
-  login: (credentials: LoginCredentials) => Promise<{ success: boolean; requires2FA?: boolean; message?: string }>;
-  verify2FA: (code: string) => Promise<{ success: boolean; message?: string }>;
-  register: (data: RegisterData) => Promise<{ success: boolean; message?: string }>;
   loginWithDiscord: (discordUser: DiscordUser, accessToken: string) => Promise<{ success: boolean; message?: string }>;
   logout: () => void;
   updateUser: (updates: Partial<User>) => void;
@@ -22,11 +18,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Pre-defined credentials
-const VALID_USERNAME = 'korvex';
-const VALID_PASSWORD = 'korvex1363N623ncKLA5Ang47674MAk6';
-const VALID_2FA_CODE = '0578';
-const ADMIN_PASSWORD = 'korvex1363N623ncKLA5Ang47674MAk6'; // Same as login password
+const ADMIN_PASSWORD = 'korvex1363N623ncKLA5Ang47674MAk6';
 
 // Discord OAuth Config
 const DISCORD_CLIENT_ID = '1483857198852603985';
@@ -34,22 +26,20 @@ const DISCORD_REDIRECT_URI = 'https://dataportal.korvex.xyz/myportal/dashboard';
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [pendingUser, setPendingUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
 
   // Load user from localStorage on mount
   useEffect(() => {
-    const storedUser = localStorage.getItem('dataportal_user');
-    const storedUsers = localStorage.getItem('dataportal_users');
-    const storedAdminAuth = localStorage.getItem('dataportal_admin_auth');
+    const storedUser = localStorage.getItem('dropz_user');
+    const storedAdminAuth = localStorage.getItem('dropz_admin_auth');
     
     if (storedUser) {
       try {
         const parsedUser = JSON.parse(storedUser);
         setUser(parsedUser);
       } catch {
-        localStorage.removeItem('dataportal_user');
+        localStorage.removeItem('dropz_user');
       }
     }
     
@@ -58,169 +48,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     
     // Initialize default users if none exist
+    const storedUsers = localStorage.getItem('dropz_users');
     if (!storedUsers) {
       const defaultUsers = [
         {
           id: '1',
-          username: VALID_USERNAME,
-          email: 'korvex@dataportal.com',
-          password: VALID_PASSWORD,
-          twoFactorCode: VALID_2FA_CODE,
+          username: 'korvex',
+          email: 'korvex@dropz.xyz',
           createdAt: new Date().toISOString(),
-          authType: 'local',
+          authType: 'discord',
           isPremium: true,
           isSuspended: false,
         },
         {
           id: '2',
           username: 'crews',
-          email: 'crews@dataportal.com',
-          password: 'crews123',
-          twoFactorCode: '0000',
+          email: 'crews@dropz.xyz',
           createdAt: new Date().toISOString(),
-          authType: 'local',
+          authType: 'discord',
           isPremium: false,
           isSuspended: false,
         }
       ];
-      localStorage.setItem('dataportal_users', JSON.stringify(defaultUsers));
+      localStorage.setItem('dropz_users', JSON.stringify(defaultUsers));
     }
     
     setIsLoading(false);
   }, []);
 
-  const login = useCallback(async (credentials: LoginCredentials): Promise<{ success: boolean; requires2FA?: boolean; message?: string }> => {
-    const storedUsers = localStorage.getItem('dataportal_users');
-    const users = storedUsers ? JSON.parse(storedUsers) : [];
-    
-    // Check for pre-defined user
-    if (credentials.username === VALID_USERNAME && credentials.password === VALID_PASSWORD) {
-      const preDefinedUser = users.find((u: any) => u.username === VALID_USERNAME);
-      if (preDefinedUser && !preDefinedUser.isSuspended) {
-        setPendingUser({
-          id: preDefinedUser.id,
-          username: preDefinedUser.username,
-          email: preDefinedUser.email,
-          twoFactorCode: preDefinedUser.twoFactorCode,
-          createdAt: preDefinedUser.createdAt,
-          authType: preDefinedUser.authType,
-          isPremium: preDefinedUser.isPremium,
-          isSuspended: preDefinedUser.isSuspended,
-        });
-        return { success: true, requires2FA: true };
-      }
-    }
-    
-    // Check for registered users
-    const foundUser = users.find((u: any) => 
-      u.username === credentials.username && 
-      u.password === credentials.password &&
-      !u.isSuspended
-    );
-    
-    if (foundUser) {
-      setPendingUser({
-        id: foundUser.id,
-        username: foundUser.username,
-        email: foundUser.email,
-        twoFactorCode: foundUser.twoFactorCode,
-        createdAt: foundUser.createdAt,
-        authType: foundUser.authType,
-        discordId: foundUser.discordId,
-        discordAvatar: foundUser.discordAvatar,
-        isPremium: foundUser.isPremium,
-        isSuspended: foundUser.isSuspended,
-      });
-      return { success: true, requires2FA: true };
-    }
-    
-    // Check if user exists but is suspended
-    const suspendedUser = users.find((u: any) => 
-      u.username === credentials.username && 
-      u.password === credentials.password &&
-      u.isSuspended
-    );
-    
-    if (suspendedUser) {
-      return { success: false, message: 'Your account has been suspended' };
-    }
-    
-    return { success: false, message: 'Invalid username or password' };
-  }, []);
-
-  const verify2FA = useCallback(async (code: string): Promise<{ success: boolean; message?: string }> => {
-    if (!pendingUser) {
-      return { success: false, message: 'No pending login' };
-    }
-    
-    if (code === pendingUser.twoFactorCode) {
-      setUser(pendingUser);
-      localStorage.setItem('dataportal_user', JSON.stringify(pendingUser));
-      setPendingUser(null);
-      return { success: true };
-    }
-    
-    return { success: false, message: 'Invalid 2FA code' };
-  }, [pendingUser]);
-
-  const register = useCallback(async (data: RegisterData): Promise<{ success: boolean; message?: string }> => {
-    const storedUsers = localStorage.getItem('dataportal_users');
-    const users = storedUsers ? JSON.parse(storedUsers) : [];
-    
-    // Check if username already exists
-    if (users.some((u: any) => u.username === data.username)) {
-      return { success: false, message: 'Username already exists' };
-    }
-    
-    // Check if email already exists
-    if (data.email && users.some((u: any) => u.email === data.email)) {
-      return { success: false, message: 'Email already exists' };
-    }
-    
-    // Validate 2FA code format (4 digits)
-    if (!/^\d{4}$/.test(data.twoFactorCode)) {
-      return { success: false, message: '2FA code must be 4 digits' };
-    }
-    
-    const newUser = {
-      id: Date.now().toString(),
-      username: data.username,
-      email: data.email,
-      password: data.password,
-      twoFactorCode: data.twoFactorCode,
-      createdAt: new Date().toISOString(),
-      authType: 'local',
-      isPremium: false,
-      isSuspended: false,
-    };
-    
-    users.push(newUser);
-    localStorage.setItem('dataportal_users', JSON.stringify(users));
-    
-    // Auto-login after registration
-    const userWithoutPassword: User = {
-      id: newUser.id,
-      username: newUser.username,
-      email: newUser.email,
-      twoFactorCode: newUser.twoFactorCode,
-      createdAt: newUser.createdAt,
-      authType: 'local',
-      isPremium: newUser.isPremium,
-      isSuspended: newUser.isSuspended,
-    };
-    
-    setUser(userWithoutPassword);
-    localStorage.setItem('dataportal_user', JSON.stringify(userWithoutPassword));
-    
-    return { success: true };
-  }, []);
-
   const loginWithDiscord = useCallback(async (discordUser: DiscordUser, _accessToken: string): Promise<{ success: boolean; message?: string }> => {
-    const storedUsers = localStorage.getItem('dataportal_users');
+    const storedUsers = localStorage.getItem('dropz_users');
     const users = storedUsers ? JSON.parse(storedUsers) : [];
     
     // Check if user already exists with this Discord ID
-    let existingUser = users.find((u: any) => u.discordId === discordUser.id);
+    let existingUser = users.find((u: any) => u.discordId === discordUser.id || u.username === discordUser.username);
     
     if (existingUser) {
       if (existingUser.isSuspended) {
@@ -228,28 +89,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       
       // Update avatar if changed
-      if (existingUser.discordAvatar !== discordUser.avatar) {
-        existingUser.discordAvatar = discordUser.avatar;
-        const userIndex = users.findIndex((u: any) => u.id === existingUser.id);
-        users[userIndex] = existingUser;
-        localStorage.setItem('dataportal_users', JSON.stringify(users));
-      }
+      existingUser.discordAvatar = discordUser.avatar;
+      existingUser.discordId = discordUser.id;
+      const userIndex = users.findIndex((u: any) => u.id === existingUser.id);
+      users[userIndex] = existingUser;
+      localStorage.setItem('dropz_users', JSON.stringify(users));
       
-      const userData = {
+      const userData: User = {
         id: existingUser.id,
         username: existingUser.username,
         email: existingUser.email || discordUser.email,
-        twoFactorCode: existingUser.twoFactorCode,
         createdAt: existingUser.createdAt,
-        authType: 'discord' as const,
+        authType: 'discord',
         discordId: existingUser.discordId,
-        discordAvatar: existingUser.discordAvatar || discordUser.avatar,
+        discordAvatar: existingUser.discordAvatar,
         isPremium: existingUser.isPremium,
         isSuspended: existingUser.isSuspended,
       };
       
       setUser(userData);
-      localStorage.setItem('dataportal_user', JSON.stringify(userData));
+      localStorage.setItem('dropz_user', JSON.stringify(userData));
       return { success: true };
     }
     
@@ -258,8 +117,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       id: Date.now().toString(),
       username: discordUser.username,
       email: discordUser.email || '',
-      password: '', // No password for Discord users
-      twoFactorCode: '0000', // Default 2FA for Discord users
       createdAt: new Date().toISOString(),
       authType: 'discord',
       discordId: discordUser.id,
@@ -269,15 +126,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
     
     users.push(newUser);
-    localStorage.setItem('dataportal_users', JSON.stringify(users));
+    localStorage.setItem('dropz_users', JSON.stringify(users));
     
-    const userData = {
+    const userData: User = {
       id: newUser.id,
       username: newUser.username,
       email: newUser.email,
-      twoFactorCode: newUser.twoFactorCode,
       createdAt: newUser.createdAt,
-      authType: 'discord' as const,
+      authType: 'discord',
       discordId: newUser.discordId,
       discordAvatar: newUser.discordAvatar,
       isPremium: newUser.isPremium,
@@ -285,15 +141,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
     
     setUser(userData);
-    localStorage.setItem('dataportal_user', JSON.stringify(userData));
+    localStorage.setItem('dropz_user', JSON.stringify(userData));
     
     return { success: true };
   }, []);
 
   const logout = useCallback(() => {
     setUser(null);
-    setPendingUser(null);
-    localStorage.removeItem('dataportal_user');
+    localStorage.removeItem('dropz_user');
   }, []);
 
   const updateUser = useCallback((updates: Partial<User>) => {
@@ -301,16 +156,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     const updatedUser = { ...user, ...updates };
     setUser(updatedUser);
-    localStorage.setItem('dataportal_user', JSON.stringify(updatedUser));
+    localStorage.setItem('dropz_user', JSON.stringify(updatedUser));
     
     // Also update in users list
-    const storedUsers = localStorage.getItem('dataportal_users');
+    const storedUsers = localStorage.getItem('dropz_users');
     if (storedUsers) {
       const users = JSON.parse(storedUsers);
       const userIndex = users.findIndex((u: any) => u.id === user.id);
       if (userIndex !== -1) {
         users[userIndex] = { ...users[userIndex], ...updates };
-        localStorage.setItem('dataportal_users', JSON.stringify(users));
+        localStorage.setItem('dropz_users', JSON.stringify(users));
       }
     }
   }, [user]);
@@ -319,7 +174,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const verifyAdminPassword = useCallback((password: string): boolean => {
     if (password === ADMIN_PASSWORD) {
       setIsAdminAuthenticated(true);
-      localStorage.setItem('dataportal_admin_auth', 'true');
+      localStorage.setItem('dropz_admin_auth', 'true');
       return true;
     }
     return false;
@@ -327,11 +182,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const adminLogout = useCallback(() => {
     setIsAdminAuthenticated(false);
-    localStorage.removeItem('dataportal_admin_auth');
+    localStorage.removeItem('dropz_admin_auth');
   }, []);
 
   const getAllUsers = useCallback((): User[] => {
-    const storedUsers = localStorage.getItem('dataportal_users');
+    const storedUsers = localStorage.getItem('dropz_users');
     if (!storedUsers) return [];
     
     const users = JSON.parse(storedUsers);
@@ -339,7 +194,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       id: u.id,
       username: u.username,
       email: u.email,
-      twoFactorCode: u.twoFactorCode,
       createdAt: u.createdAt,
       authType: u.authType,
       discordId: u.discordId,
@@ -350,7 +204,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const updateUserByAdmin = useCallback((userId: string, updates: Partial<User>): boolean => {
-    const storedUsers = localStorage.getItem('dataportal_users');
+    const storedUsers = localStorage.getItem('dropz_users');
     if (!storedUsers) return false;
     
     const users = JSON.parse(storedUsers);
@@ -359,20 +213,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (userIndex === -1) return false;
     
     users[userIndex] = { ...users[userIndex], ...updates };
-    localStorage.setItem('dataportal_users', JSON.stringify(users));
+    localStorage.setItem('dropz_users', JSON.stringify(users));
     
     // If updating current user, update session too
     if (user && user.id === userId) {
       const updatedUser = { ...user, ...updates };
       setUser(updatedUser);
-      localStorage.setItem('dataportal_user', JSON.stringify(updatedUser));
+      localStorage.setItem('dropz_user', JSON.stringify(updatedUser));
     }
     
     return true;
   }, [user]);
 
   const deleteUser = useCallback((userId: string): boolean => {
-    const storedUsers = localStorage.getItem('dataportal_users');
+    const storedUsers = localStorage.getItem('dropz_users');
     if (!storedUsers) return false;
     
     const users = JSON.parse(storedUsers);
@@ -380,14 +234,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     if (filteredUsers.length === users.length) return false;
     
-    localStorage.setItem('dataportal_users', JSON.stringify(filteredUsers));
+    localStorage.setItem('dropz_users', JSON.stringify(filteredUsers));
     
     // Also delete user's documents
-    const storedDocs = localStorage.getItem('dataportal_documents');
+    const storedDocs = localStorage.getItem('dropz_documents');
     if (storedDocs) {
       const allDocs = JSON.parse(storedDocs);
       const filteredDocs = allDocs.filter((d: any) => d.userId !== userId);
-      localStorage.setItem('dataportal_documents', JSON.stringify(filteredDocs));
+      localStorage.setItem('dropz_documents', JSON.stringify(filteredDocs));
     }
     
     return true;
@@ -399,11 +253,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user,
         isAuthenticated: !!user,
         isLoading,
-        pendingUser,
         isAdminAuthenticated,
-        login,
-        verify2FA,
-        register,
         loginWithDiscord,
         logout,
         updateUser,

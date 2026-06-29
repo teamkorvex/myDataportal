@@ -3,8 +3,6 @@ import { AuthProvider } from '@/hooks/useAuth';
 import { ThemeProvider } from '@/hooks/useTheme';
 import { Home } from '@/pages/Home';
 import { Login } from '@/pages/Login';
-import { TwoFactorAuth } from '@/pages/TwoFactorAuth';
-import { Register } from '@/pages/Register';
 import { Dashboard } from '@/pages/Dashboard';
 import { Storage } from '@/pages/Storage';
 import { Settings } from '@/pages/Settings';
@@ -21,8 +19,6 @@ function App() {
             {/* Public routes */}
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
-            <Route path="/2fa" element={<TwoFactorAuth />} />
-            <Route path="/register" element={<Register />} />
             
             {/* Protected dashboard routes */}
             <Route element={<DashboardLayout />}>
