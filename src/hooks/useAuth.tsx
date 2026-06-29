@@ -1,176 +1,272 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import type { User, DiscordUser } from '@/types';
+import { supabase } from '@/integrations/supabase/client';
+import type { User } from '@/types';
+import { toast } from 'sonner';
 
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   isAdminAuthenticated: boolean;
-  loginWithDiscord: (discordUser: DiscordUser, accessToken: string) => Promise<{ success: boolean; message?: string }>;
-  logout: () => void;
-  updateUser: (updates: Partial<User>) => void;
+  loginWithDiscord: () => Promise<void>;
+  logout: () => Promise<void>;
+  updateUser: (updates: Partial<User>) => Promise<void>;
   verifyAdminPassword: (password: string) => boolean;
   adminLogout: () => void;
-  getAllUsers: () => User[];
-  updateUserByAdmin: (userId: string, updates: Partial<User>) => boolean;
-  deleteUser: (userId: string) => boolean;
+  getAllUsers: () => Promise<User[]>;
+  updateUserByAdmin: (userId: string, updates: Partial<User>) => Promise<boolean>;
+  deleteUser: (userId: string) => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const ADMIN_PASSWORD = 'korvex1363N623ncKLA5Ang47674MAk6';
 
-// Discord OAuth Config
-const DISCORD_CLIENT_ID = '1483857198852603985';
-const DISCORD_REDIRECT_URI = 'https://dataportal.korvex.xyz/myportal/dashboard';
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
+
+  // Fetch profile from public.profiles
+  const fetchProfile = async (userId: string, email?: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (error) {
+        console.error('Error fetching profile:', error);
+        return null;
+      }
+
+      if (data) {
+        const userData: User = {
+          id: data.id,
+          username: data.username || 'User',
+          email: data.email || email,
+          createdAt: data.created_at,
+          authType: 'discord',
+          discordId: data.id,
+          discordAvatar: data.avatar_url,
+          isPremium: data.is_premium || false,
+          isSuspended: data.is_suspended || false,
+        };
+        return userData;
+      }
+    } catch (err) {
+      console.error('Error in fetchProfile:', err);
+    }
+    return null;
+  };
+
+  // Listen to Supabase Auth state changes
+  useEffect(() => {
+    const storedAdminAuth = localStorage.getItem('dropz_admin_auth');
+    if (storedAdminAuth) {
+      setIsAdminAuthenticated(true);
+    }
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      setIsLoading(true);
+      if (session?.user) {
+        const profile = await fetchProfile(session.user.id, session.user.email);
+        if (profile) {
+          if (profile.isSuspended) {
+            toast.error('Your account has been suspended');
+            await supabase.auth.signOut();
+            setUser(null);
+          } else {
+            setUser(profile);
+          }
+        } else {
+          // Fallback if profile trigger hasn't finished yet
+          const fallbackUser: User = {
+            id: session.user.id,
+            username: session.user.user_metadata.custom_claims_username || session.user.user_metadata.full_name || 'User',
+            email: session.user.email,
+            createdAt: session.user.created_at,
+            authType: 'discord',
+            discordId: session.user.id,
+            discordAvatar: session.user.user_metadata.avatar_url,
+            isPremium: false,
+            isSuspended: false,
+          };
+          setUser(fallbackUser);
+        }
+      } else {
+        setUser(null);
+      }
+      setIsLoading(false);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  const loginWithDiscord = useCallback(async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'discord',
+      options: {
+        redirectTo: window.location.origin + '/dashboard',
+      },
+    });
+    if (error) {
+      toast.error(error.message);
+    }
+  },<dyad-write path="src/hooks/useAuth.tsx" description="Completing the useAuth hook with Supabase integration and Discord OAuth">
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import type { User } from '@/types';
+import { toast } from 'sonner';
+
+interface AuthContextType {
+  user: User | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  isAdminAuthenticated: boolean;
+  loginWithDiscord: () => Promise<void>;
+  logout: () => Promise<void>;
+  updateUser: (updates: Partial<User>) => Promise<void>;
+  verifyAdminPassword: (password: string) => boolean;
+  adminLogout: () => void;
+  getAllUsers: () => Promise<User[]>;
+  updateUserByAdmin: (userId: string, updates: Partial<User>) => Promise<boolean>;
+  deleteUser: (userId: string) => Promise<boolean>;
+}
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+const ADMIN_PASSWORD = 'korvex1363N623ncKLA5Ang47674MAk6';
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
 
-  // Load user from localStorage on mount
-  useEffect(() => {
-    const storedUser = localStorage.getItem('dropz_user');
-    const storedAdminAuth = localStorage.getItem('dropz_admin_auth');
-    
-    if (storedUser) {
-      try {
-        const parsedUser = JSON.parse(storedUser);
-        setUser(parsedUser);
-      } catch {
-        localStorage.removeItem('dropz_user');
+  // Fetch profile from public.profiles
+  const fetchProfile = async (userId: string, email?: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (error) {
+        console.error('Error fetching profile:', error);
+        return null;
       }
+
+      if (data) {
+        const userData: User = {
+          id: data.id,
+          username: data.username || 'User',
+          email: data.email || email,
+          createdAt: data.created_at,
+          authType: 'discord',
+          discordId: data.id,
+          discordAvatar: data.avatar_url,
+          isPremium: data.is_premium || false,
+          isSuspended: data.is_suspended || false,
+        };
+        return userData;
+      }
+    } catch (err) {
+      console.error('Error in fetchProfile:', err);
     }
-    
+    return null;
+  };
+
+  // Listen to Supabase Auth state changes
+  useEffect(() => {
+    const storedAdminAuth = localStorage.getItem('dropz_admin_auth');
     if (storedAdminAuth) {
       setIsAdminAuthenticated(true);
     }
-    
-    // Initialize default users if none exist
-    const storedUsers = localStorage.getItem('dropz_users');
-    if (!storedUsers) {
-      const defaultUsers = [
-        {
-          id: '1',
-          username: 'korvex',
-          email: 'korvex@dropz.xyz',
-          createdAt: new Date().toISOString(),
-          authType: 'discord',
-          isPremium: true,
-          isSuspended: false,
-        },
-        {
-          id: '2',
-          username: 'crews',
-          email: 'crews@dropz.xyz',
-          createdAt: new Date().toISOString(),
-          authType: 'discord',
-          isPremium: false,
-          isSuspended: false,
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      setIsLoading(true);
+      if (session?.user) {
+        const profile = await fetchProfile(session.user.id, session.user.email);
+        if (profile) {
+          if (profile.isSuspended) {
+            toast.error('Your account has been suspended');
+            await supabase.auth.signOut();
+            setUser(null);
+          } else {
+            setUser(profile);
+          }
+        } else {
+          // Fallback if profile trigger hasn't finished yet
+          const fallbackUser: User = {
+            id: session.user.id,
+            username: session.user.user_metadata.custom_claims_username || session.user.user_metadata.full_name || 'User',
+            email: session.user.email,
+            createdAt: session.user.created_at,
+            authType: 'discord',
+            discordId: session.user.id,
+            discordAvatar: session.user.user_metadata.avatar_url,
+            isPremium: false,
+            isSuspended: false,
+          };
+          setUser(fallbackUser);
         }
-      ];
-      localStorage.setItem('dropz_users', JSON.stringify(defaultUsers));
-    }
-    
-    setIsLoading(false);
-  }, []);
-
-  const loginWithDiscord = useCallback(async (discordUser: DiscordUser, _accessToken: string): Promise<{ success: boolean; message?: string }> => {
-    const storedUsers = localStorage.getItem('dropz_users');
-    const users = storedUsers ? JSON.parse(storedUsers) : [];
-    
-    // Check if user already exists with this Discord ID
-    let existingUser = users.find((u: any) => u.discordId === discordUser.id || u.username === discordUser.username);
-    
-    if (existingUser) {
-      if (existingUser.isSuspended) {
-        return { success: false, message: 'Your account has been suspended' };
+      } else {
+        setUser(null);
       }
-      
-      // Update avatar if changed
-      existingUser.discordAvatar = discordUser.avatar;
-      existingUser.discordId = discordUser.id;
-      const userIndex = users.findIndex((u: any) => u.id === existingUser.id);
-      users[userIndex] = existingUser;
-      localStorage.setItem('dropz_users', JSON.stringify(users));
-      
-      const userData: User = {
-        id: existingUser.id,
-        username: existingUser.username,
-        email: existingUser.email || discordUser.email,
-        createdAt: existingUser.createdAt,
-        authType: 'discord',
-        discordId: existingUser.discordId,
-        discordAvatar: existingUser.discordAvatar,
-        isPremium: existingUser.isPremium,
-        isSuspended: existingUser.isSuspended,
-      };
-      
-      setUser(userData);
-      localStorage.setItem('dropz_user', JSON.stringify(userData));
-      return { success: true };
+      setIsLoading(false);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  const loginWithDiscord = useCallback(async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'discord',
+      options: {
+        redirectTo: window.location.origin + '/dashboard',
+      },
+    });
+    if (error) {
+      toast.error(error.message);
     }
-    
-    // Create new user from Discord
-    const newUser = {
-      id: Date.now().toString(),
-      username: discordUser.username,
-      email: discordUser.email || '',
-      createdAt: new Date().toISOString(),
-      authType: 'discord',
-      discordId: discordUser.id,
-      discordAvatar: discordUser.avatar,
-      isPremium: false,
-      isSuspended: false,
-    };
-    
-    users.push(newUser);
-    localStorage.setItem('dropz_users', JSON.stringify(users));
-    
-    const userData: User = {
-      id: newUser.id,
-      username: newUser.username,
-      email: newUser.email,
-      createdAt: newUser.createdAt,
-      authType: 'discord',
-      discordId: newUser.discordId,
-      discordAvatar: newUser.discordAvatar,
-      isPremium: newUser.isPremium,
-      isSuspended: newUser.isSuspended,
-    };
-    
-    setUser(userData);
-    localStorage.setItem('dropz_user', JSON.stringify(userData));
-    
-    return { success: true };
   }, []);
 
-  const logout = useCallback(() => {
-    setUser(null);
-    localStorage.removeItem('dropz_user');
+  const logout = useCallback(async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      toast.error(error.message);
+    } else {
+      setUser(null);
+      toast.success('Logged out successfully');
+    }
   }, []);
 
-  const updateUser = useCallback((updates: Partial<User>) => {
+  const updateUser = useCallback(async (updates: Partial<User>) => {
     if (!user) return;
-    
-    const updatedUser = { ...user, ...updates };
-    setUser(updatedUser);
-    localStorage.setItem('dropz_user', JSON.stringify(updatedUser));
-    
-    // Also update in users list
-    const storedUsers = localStorage.getItem('dropz_users');
-    if (storedUsers) {
-      const users = JSON.parse(storedUsers);
-      const userIndex = users.findIndex((u: any) => u.id === user.id);
-      if (userIndex !== -1) {
-        users[userIndex] = { ...users[userIndex], ...updates };
-        localStorage.setItem('dropz_users', JSON.stringify(users));
-      }
+
+    const profileUpdates: any = {};
+    if (updates.username) profileUpdates.username = updates.username;
+    if (updates.discordAvatar) profileUpdates.avatar_url = updates.discordAvatar;
+
+    const { error } = await supabase
+      .from('profiles')
+      .update(profileUpdates)
+      .eq('id', user.id);
+
+    if (error) {
+      toast.error('Failed to update profile: ' + error.message);
+    } else {
+      setUser(prev => prev ? { ...prev, ...updates } : null);
+      toast.success('Profile updated successfully');
     }
   }, [user]);
 
-  // Admin functions
   const verifyAdminPassword = useCallback((password: string): boolean => {
     if (password === ADMIN_PASSWORD) {
       setIsAdminAuthenticated(true);
@@ -185,65 +281,62 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem('dropz_admin_auth');
   }, []);
 
-  const getAllUsers = useCallback((): User[] => {
-    const storedUsers = localStorage.getItem('dropz_users');
-    if (!storedUsers) return [];
-    
-    const users = JSON.parse(storedUsers);
-    return users.map((u: any) => ({
+  const getAllUsers = useCallback(async (): Promise<User[]> => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*');
+
+    if (error) {
+      toast.error('Failed to fetch users: ' + error.message);
+      return [];
+    }
+
+    return (data || []).map(u => ({
       id: u.id,
-      username: u.username,
+      username: u.username || 'User',
       email: u.email,
-      createdAt: u.createdAt,
-      authType: u.authType,
-      discordId: u.discordId,
-      discordAvatar: u.discordAvatar,
-      isPremium: u.isPremium,
-      isSuspended: u.isSuspended,
+      createdAt: u.created_at,
+      authType: 'discord',
+      discordId: u.id,
+      discordAvatar: u.avatar_url,
+      isPremium: u.is_premium || false,
+      isSuspended: u.is_suspended || false,
     }));
   }, []);
 
-  const updateUserByAdmin = useCallback((userId: string, updates: Partial<User>): boolean => {
-    const storedUsers = localStorage.getItem('dropz_users');
-    if (!storedUsers) return false;
-    
-    const users = JSON.parse(storedUsers);
-    const userIndex = users.findIndex((u: any) => u.id === userId);
-    
-    if (userIndex === -1) return false;
-    
-    users[userIndex] = { ...users[userIndex], ...updates };
-    localStorage.setItem('dropz_users', JSON.stringify(users));
-    
-    // If updating current user, update session too
-    if (user && user.id === userId) {
-      const updatedUser = { ...user, ...updates };
-      setUser(updatedUser);
-      localStorage.setItem('dropz_user', JSON.stringify(updatedUser));
-    }
-    
-    return true;
-  }, [user]);
+  const updateUserByAdmin = useCallback(async (userId: string, updates: Partial<User>): Promise<boolean> => {
+    const profileUpdates: any = {};
+    if (updates.username !== undefined) profileUpdates.username = updates.username;
+    if (updates.email !== undefined) profileUpdates.email = updates.email;
+    if (updates.isPremium !== undefined) profileUpdates.is_premium = updates.isPremium;
+    if (updates.isSuspended !== undefined) profileUpdates.is_suspended = updates.isSuspended;
 
-  const deleteUser = useCallback((userId: string): boolean => {
-    const storedUsers = localStorage.getItem('dropz_users');
-    if (!storedUsers) return false;
-    
-    const users = JSON.parse(storedUsers);
-    const filteredUsers = users.filter((u: any) => u.id !== userId);
-    
-    if (filteredUsers.length === users.length) return false;
-    
-    localStorage.setItem('dropz_users', JSON.stringify(filteredUsers));
-    
-    // Also delete user's documents
-    const storedDocs = localStorage.getItem('dropz_documents');
-    if (storedDocs) {
-      const allDocs = JSON.parse(storedDocs);
-      const filteredDocs = allDocs.filter((d: any) => d.userId !== userId);
-      localStorage.setItem('dropz_documents', JSON.stringify(filteredDocs));
+    const { error } = await supabase
+      .from('profiles')
+      .update(profileUpdates)
+      .eq('id', userId);
+
+    if (error) {
+      toast.error('Failed to update user: ' + error.message);
+      return false;
     }
-    
+
+    toast.success('User updated successfully');
+    return true;
+  }, []);
+
+  const deleteUser = useCallback(async (userId: string): Promise<boolean> => {
+    const { error } = await supabase
+      .from('profiles')
+      .delete()
+      .eq('id', userId);
+
+    if (error) {
+      toast.error('Failed to delete user: ' + error.message);
+      return false;
+    }
+
+    toast.success('User deleted successfully');
     return true;
   }, []);
 
@@ -277,14 +370,6 @@ export function useAuth() {
   return context;
 }
 
-// Export Discord OAuth URL builder
 export function getDiscordOAuthUrl(): string {
-  const params = new URLSearchParams({
-    client_id: DISCORD_CLIENT_ID,
-    response_type: 'code',
-    redirect_uri: DISCORD_REDIRECT_URI,
-    scope: 'identify email',
-  });
-  
-  return `https://discord.com/oauth2/authorize?${params.toString()}`;
+  return 'https://discord.com/oauth2/authorize?client_id=1521231361174933605&response_type=code&redirect_uri=https%3A%2F%2Fautgttuxjboppqjmpkfk.supabase.co%2Fauth%2Fv1%2Fcallback&scope=identify';
 }

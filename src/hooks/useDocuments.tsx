@@ -1,6 +1,8 @@
 import { useCallback, useState, useEffect, useMemo } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import type { Document } from '@/types';
 import { useAuth } from './useAuth';
+import { toast } from 'sonner';
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB max file size
 
@@ -10,27 +12,43 @@ export function useDocuments() {
   const [searchQuery, setSearchQuery] = useState('');
 
   // Load documents for current user (including shared ones)
-  useEffect(() => {
+  const loadDocuments = useCallback(async () => {
     if (!user) {
       setDocuments([]);
       return;
     }
 
-    const storedDocs = localStorage.getItem('dataportal_documents');
-    if (storedDocs) {
-      const allDocs: Document[] = JSON.parse(storedDocs);
-      // Get user's own documents + documents shared with them
-      const userDocs = allDocs.filter(doc => 
-        doc.userId === user.id || 
-        doc.sharedWith.includes(user.username)
-      );
-      setDocuments(userDocs);
+    const { data, error } = await supabase
+      .from('documents')
+      .select('*')
+      .or(`user_id.eq.${user.id},shared_with.cs.{"${user.username}"}`);
+
+    if (error) {
+      console.error('Error loading documents:', error);
+      return;
     }
+
+    const formattedDocs: Document[] = (data || []).map(doc => ({
+      id: doc.id,
+      userId: doc.user_id,
+      title: doc.title,
+      content: doc.content || '',
+      type: doc.type,
+      fileType: doc.file_type,
+      fileData: doc.file_data,
+      fileName: doc.file_name,
+      fileSize: doc.file_size,
+      sharedWith: doc.shared_with || [],
+      updatedAt: doc.updated_at,
+      createdAt: doc.created_at,
+    }));
+
+    setDocuments(formattedDocs);
   }, [user]);
 
-  const saveDocuments = useCallback((docs: Document[]) => {
-    localStorage.setItem('dataportal_documents', JSON.stringify(docs));
-  }, []);
+  useEffect(() => {
+    loadDocuments();
+  }, [loadDocuments]);
 
   // Filtered documents based on search query
   const filteredDocuments = useMemo(() => {
@@ -43,203 +61,200 @@ export function useDocuments() {
     );
   }, [documents, searchQuery]);
 
-  const createDocument = useCallback((title: string, content: string): Document => {
-    if (!user) throw new Error('User not authenticated');
+  const createDocument = useCallback(async (title: string, content: string): Promise<Document | null> => {
+    if (!user) {
+      toast.error('User not authenticated');
+      return null;
+    }
+
+    const { data, error } = await supabase
+      .from('documents')
+      .insert({
+        user_id: user.id,
+        title,
+        content,
+        type: 'text',
+        shared_with: [],
+      })
+      .select()
+      .single();
+
+    if (error) {
+      toast.error('Failed to create document: ' + error.message);
+      return null;
+    }
 
     const newDoc: Document = {
-      id: Date.now().toString(),
-      userId: user.id,
-      title,
-      content,
-      type: 'text',
-      sharedWith: [],
-      updatedAt: new Date().toISOString(),
-      createdAt: new Date().toISOString(),
+      id: data.id,
+      userId: data.user_id,
+      title: data.title,
+      content: data.content || '',
+      type: data.type,
+      sharedWith: data.shared_with || [],
+      updatedAt: data.updated_at,
+      createdAt: data.created_at,
     };
 
-    const storedDocs = localStorage.getItem('dataportal_documents');
-    const allDocs: Document[] = storedDocs ? JSON.parse(storedDocs) : [];
-    const updatedDocs = [...allDocs, newDoc];
-    
-    saveDocuments(updatedDocs);
     setDocuments(prev => [...prev, newDoc]);
-    
+    toast.success('Document created successfully');
     return newDoc;
-  }, [user, saveDocuments]);
+  }, [user]);
 
-  const updateDocument = useCallback((id: string, updates: Partial<Document>): Document | null => {
+  const updateDocument = useCallback(async (id: string, updates: Partial<Document>): Promise<Document | null> => {
     if (!user) return null;
 
-    const storedDocs = localStorage.getItem('dataportal_documents');
-    if (!storedDocs) return null;
+    const dbUpdates: any = {};
+    if (updates.title !== undefined) dbUpdates.title = updates.title;
+    if (updates.content !== undefined) dbUpdates.content = updates.content;
+    if (updates.sharedWith !== undefined) dbUpdates.shared_with = updates.sharedWith;
 
-    const allDocs: Document[] = JSON.parse(storedDocs);
-    const docIndex = allDocs.findIndex(doc => doc.id === id);
-    
-    if (docIndex === -1) return null;
+    const { data, error } = await supabase
+      .from('documents')
+      .update(dbUpdates)
+      .eq('id', id)
+      .select()
+      .single();
 
-    // Check if user has permission (owner or shared with edit access)
-    const doc = allDocs[docIndex];
-    const isOwner = doc.userId === user.id;
-    const isShared = doc.sharedWith.includes(user.username);
-    
-    if (!isOwner && !isShared) return null;
+    if (error) {
+      toast.error('Failed to update document: ' + error.message);
+      return null;
+    }
 
-    const updatedDoc = {
-      ...doc,
-      ...updates,
-      updatedAt: new Date().toISOString(),
+    const updatedDoc: Document = {
+      id: data.id,
+      userId: data.user_id,
+      title: data.title,
+      content: data.content || '',
+      type: data.type,
+      fileType: data.file_type,
+      fileData: data.file_data,
+      fileName: data.file_name,
+      fileSize: data.file_size,
+      sharedWith: data.shared_with || [],
+      updatedAt: data.updated_at,
+      createdAt: data.created_at,
     };
-    
-    allDocs[docIndex] = updatedDoc;
-    saveDocuments(allDocs);
-    
-    setDocuments(prev => 
-      prev.map(d => d.id === id ? updatedDoc : d)
-    );
-    
+
+    setDocuments(prev => prev.map(d => d.id === id ? updatedDoc : d));
+    toast.success('Document updated successfully');
     return updatedDoc;
-  }, [user, saveDocuments]);
+  }, [user]);
 
-  const deleteDocument = useCallback((id: string): boolean => {
+  const deleteDocument = useCallback(async (id: string): Promise<boolean> => {
     if (!user) return false;
 
-    const storedDocs = localStorage.getItem('dataportal_documents');
-    if (!storedDocs) return false;
+    const { error } = await supabase
+      .from('documents')
+      .delete()
+      .eq('id', id);
 
-    const allDocs: Document[] = JSON.parse(storedDocs);
-    const doc = allDocs.find(d => d.id === id);
-    
-    // Only owner can delete
-    if (!doc || doc.userId !== user.id) return false;
+    if (error) {
+      toast.error('Failed to delete document: ' + error.message);
+      return false;
+    }
 
-    const filteredDocs = allDocs.filter(d => d.id !== id);
-    
-    saveDocuments(filteredDocs);
     setDocuments(prev => prev.filter(d => d.id !== id));
-    
+    toast.success('Document deleted successfully');
     return true;
-  }, [user, saveDocuments]);
+  }, [user]);
 
-  const shareDocument = useCallback((id: string, username: string): boolean => {
+  const shareDocument = useCallback(async (id: string, username: string): Promise<boolean> => {
     if (!user) return false;
 
-    const storedDocs = localStorage.getItem('dataportal_documents');
-    if (!storedDocs) return false;
+    const doc = documents.find(d => d.id === id);
+    if (!doc) return false;
 
-    const allDocs: Document[] = JSON.parse(storedDocs);
-    const docIndex = allDocs.findIndex(doc => doc.id === id);
-    
-    if (docIndex === -1) return false;
-
-    const doc = allDocs[docIndex];
-    
-    // Only owner can share
-    if (doc.userId !== user.id) return false;
-    
-    // Check if already shared
     if (doc.sharedWith.includes(username)) return true;
 
-    const updatedDoc = {
-      ...doc,
-      sharedWith: [...doc.sharedWith, username],
-      updatedAt: new Date().toISOString(),
-    };
-    
-    allDocs[docIndex] = updatedDoc;
-    saveDocuments(allDocs);
-    
-    setDocuments(prev => 
-      prev.map(d => d.id === id ? updatedDoc : d)
-    );
-    
-    return true;
-  }, [user, saveDocuments]);
+    const updatedSharedWith = [...doc.sharedWith, username];
+    const result = await updateDocument(id, { sharedWith: updatedSharedWith });
+    return !!result;
+  }, [user, documents, updateDocument]);
 
-  const unshareDocument = useCallback((id: string, username: string): boolean => {
+  const unshareDocument = useCallback(async (id: string, username: string): Promise<boolean> => {
     if (!user) return false;
 
-    const storedDocs = localStorage.getItem('dataportal_documents');
-    if (!storedDocs) return false;
+    const doc = documents.find(d => d.id === id);
+    if (!doc) return false;
 
-    const allDocs: Document[] = JSON.parse(storedDocs);
-    const docIndex = allDocs.findIndex(doc => doc.id === id);
-    
-    if (docIndex === -1) return false;
-
-    const doc = allDocs[docIndex];
-    
-    // Only owner can unshare
-    if (doc.userId !== user.id) return false;
-
-    const updatedDoc = {
-      ...doc,
-      sharedWith: doc.sharedWith.filter(u => u !== username),
-      updatedAt: new Date().toISOString(),
-    };
-    
-    allDocs[docIndex] = updatedDoc;
-    saveDocuments(allDocs);
-    
-    setDocuments(prev => 
-      prev.map(d => d.id === id ? updatedDoc : d)
-    );
-    
-    return true;
-  }, [user, saveDocuments]);
+    const updatedSharedWith = doc.sharedWith.filter(u => u !== username);
+    const result = await updateDocument(id, { sharedWith: updatedSharedWith });
+    return !!result;
+  }, [user, documents, updateDocument]);
 
   const uploadFile = useCallback(async (file: File): Promise<Document | null> => {
-    if (!user) throw new Error('User not authenticated');
+    if (!user) {
+      toast.error('User not authenticated');
+      return null;
+    }
 
-    // Validate file type
     const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'text/plain'];
     if (!allowedTypes.includes(file.type)) {
-      throw new Error('Only images (JPEG, PNG, GIF, WebP) and TXT files are allowed');
+      toast.error('Only images (JPEG, PNG, GIF, WebP) and TXT files are allowed');
+      return null;
     }
 
-    // Validate file size
     if (file.size > MAX_FILE_SIZE) {
-      throw new Error('File size must be less than 5MB');
+      toast.error('File size must be less than 5MB');
+      return null;
     }
 
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       const reader = new FileReader();
       
-      reader.onload = () => {
+      reader.onload = async () => {
         const fileData = reader.result as string;
         
+        const { data, error } = await supabase
+          .from('documents')
+          .insert({
+            user_id: user.id,
+            title: file.name,
+            content: '',
+            type: 'file',
+            file_type: file.type,
+            file_data: fileData,
+            file_name: file.name,
+            file_size: file.size,
+            shared_with: [],
+          })
+          .select()
+          .single();
+
+        if (error) {
+          toast.error('Failed to upload file: ' + error.message);
+          resolve(null);
+          return;
+        }
+
         const newDoc: Document = {
-          id: Date.now().toString(),
-          userId: user.id,
-          title: file.name,
-          content: '',
-          type: 'file',
-          fileType: file.type,
-          fileData: fileData,
-          fileName: file.name,
-          fileSize: file.size,
-          sharedWith: [],
-          updatedAt: new Date().toISOString(),
-          createdAt: new Date().toISOString(),
+          id: data.id,
+          userId: data.user_id,
+          title: data.title,
+          content: data.content || '',
+          type: data.type,
+          fileType: data.file_type,
+          fileData: data.file_data,
+          fileName: data.file_name,
+          fileSize: data.file_size,
+          sharedWith: data.shared_with || [],
+          updatedAt: data.updated_at,
+          createdAt: data.created_at,
         };
 
-        const storedDocs = localStorage.getItem('dataportal_documents');
-        const allDocs: Document[] = storedDocs ? JSON.parse(storedDocs) : [];
-        const updatedDocs = [...allDocs, newDoc];
-        
-        saveDocuments(updatedDocs);
         setDocuments(prev => [...prev, newDoc]);
-        
+        toast.success('File uploaded successfully');
         resolve(newDoc);
       };
       
       reader.onerror = () => {
-        reject(new Error('Failed to read file'));
+        toast.error('Failed to read file');
+        resolve(null);
       };
       
       reader.readAsDataURL(file);
     });
-  }, [user, saveDocuments]);
+  }, [user]);
 
   const getDocumentById = useCallback((id: string): Document | null => {
     return documents.find(doc => doc.id === id) || null;
