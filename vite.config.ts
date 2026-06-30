@@ -6,11 +6,14 @@ import dyadComponentTagger from '@dyad-sh/react-vite-component-tagger';
 
 // https://vite.dev/config/
 export default defineConfig({
-  base: './',
+  base: '/',
   plugins: [dyadComponentTagger(), inspectAttr(), react()],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  server: {
+    historyApiFallback: true,
+  }
 });

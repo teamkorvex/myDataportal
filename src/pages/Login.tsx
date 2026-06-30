@@ -1,14 +1,12 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Sparkles, ArrowLeft, Loader2 } from 'lucide-react';
 import { useAuth, getDiscordOAuthUrl } from '@/hooks/useAuth';
 
 export function Login() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const { loginWithDiscord, isAuthenticated, isLoading: authLoading } = useAuth();
-  const [error, setError] = useState('');
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
 
   // Redirect if already authenticated
@@ -18,75 +16,14 @@ export function Login() {
     }
   }, [isAuthenticated, authLoading, navigate]);
 
-  // Handle Discord OAuth callback
-  useEffect(() => {
-    const code = searchParams.get('code');
-    if (code) {
-      handleDiscordCallback(code);
-    }
-  }, [searchParams]);
-
-  const handleDiscordCallback = async (code: string) => {
+  const handleDiscordLogin = async () => {
     setIsLoading(true);
-    setError('');
-    
     try {
-      // Exchange code for access token
-      const tokenResponse = await fetch('https://discord.com/api/oauth2/token', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: new URLSearchParams({
-          client_id: '1483857198852603985',
-          client_secret: 'SXPh1Ta9_rPft3I3OYCbXq-y4jrf8bfh',
-          grant_type: 'authorization_code',
-          code,
-          redirect_uri: 'https://dataportal.korvex.xyz/myportal/dashboard',
-        }),
-      });
-
-      if (!tokenResponse.ok) {
-        throw new Error('Failed to authenticate with Discord');
-      }
-
-      const tokenData = await tokenResponse.json();
-      
-      // Get user info from Discord
-      const userResponse = await fetch('https://discord.com/api/users/@me', {
-        headers: {
-          Authorization: `Bearer ${tokenData.access_token}`,
-        },
-      });
-
-      if (!userResponse.ok) {
-        throw new Error('Failed to get user info from Discord');
-      }
-
-      const discordUser = await userResponse.json();
-      
-      // Login with Discord user
-      const result = await loginWithDiscord({
-        id: discordUser.id,
-        username: discordUser.username,
-        avatar: discordUser.avatar ? `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png` : undefined,
-        email: discordUser.email,
-      }, tokenData.access_token);
-
-      if (result.success) {
-        navigate('/dashboard');
-      } else {
-        setError(result.message || 'Discord login failed');
-      }
-    } catch (err: any) {
-      setError(err.message || 'Failed to login with Discord');
-    } finally {
+      window.location.href = getDiscordOAuthUrl();
+    } catch (err) {
+      console.error('Login error:', err);
       setIsLoading(false);
     }
-  };
-
-  const handleDiscordLogin = () => {
-    window.location.href = getDiscordOAuthUrl();
   };
 
   if (authLoading) {
@@ -101,7 +38,6 @@ export function Login() {
     <div className="min-h-screen w-full bg-background flex">
       {/* Left side - Abstract visuals */}
       <div className="hidden lg:flex lg:w-1/2 relative bg-[#0a0a0f] overflow-hidden">
-        {/* Abstract shapes */}
         <div className="absolute inset-0">
           <div 
             className="absolute w-96 h-96 rounded-full opacity-30"
@@ -123,7 +59,6 @@ export function Login() {
           />
         </div>
         
-        {/* Content */}
         <div className="relative z-10 flex flex-col justify-end p-12">
           <Button 
             variant="ghost" 
@@ -148,7 +83,6 @@ export function Login() {
 
       {/* Right side - Login form */}
       <div className="w-full lg:w-1/2 flex flex-col items-center justify-center p-8 relative">
-        {/* Mobile back button */}
         <Button 
           variant="ghost" 
           size="sm" 
@@ -159,7 +93,6 @@ export function Login() {
           Back
         </Button>
 
-        {/* Logo - mobile only */}
         <div className="lg:hidden absolute top-6 right-6 flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center">
             <Sparkles className="w-5 h-5 text-primary" />
@@ -175,7 +108,6 @@ export function Login() {
             </p>
           </div>
 
-          {/* Discord Login Button */}
           <Button 
             variant="outline" 
             className="w-full h-14 mb-6 border-[#5865F2] text-[#5865F2] hover:bg-[#5865F2]/10 text-base font-medium"
@@ -191,12 +123,6 @@ export function Login() {
             )}
             Sign in with Discord
           </Button>
-
-          {error && (
-            <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm text-center">
-              {error}
-            </div>
-          )}
         </div>
       </div>
     </div>
