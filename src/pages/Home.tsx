@@ -1,9 +1,19 @@
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Sparkles, LogIn } from 'lucide-react';
+import { Sparkles, LogIn, LayoutDashboard } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
 
 export function Home() {
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
+
+  const handleAction = () => {
+    if (isAuthenticated) {
+      navigate('/dashboard');
+    } else {
+      navigate('/login');
+    }
+  };
 
   return (
     <div className="min-h-screen w-full bg-background grid-background relative overflow-hidden">
@@ -27,17 +37,26 @@ export function Home() {
             <span className="text-primary">dropz</span>
           </h1>
           <p className="text-lg text-muted-foreground mb-10 max-w-md mx-auto">
-            A fun, social space to drop, share, and manage your images and documents with friends.
+            A fun, social spaceto drop, share, and manage your images and documents with friends.
           </p>
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button 
               size="lg" 
               className="bg-primary hover:bg-primary/90 text-primary-foreground px-8 py-6 text-base font-medium"
-              onClick={() => navigate('/login')}
+              onClick={handleAction}
             >
-              <LogIn className="w-4 h-4 mr-2" />
-              Enter dropz
+              {isAuthenticated ? (
+                <>
+                  <LayoutDashboard className="w-4 h-4 mr-2" />
+                  Go to Dashboard
+                </>
+              ) : (
+                <>
+                  <LogIn className="w-4 h-4 mr-2" />
+                  Enter dropz
+                </>
+              )}
             </Button>
           </div>
         </div>

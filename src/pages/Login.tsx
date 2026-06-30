@@ -7,9 +7,16 @@ import { useAuth, getDiscordOAuthUrl } from '@/hooks/useAuth';
 export function Login() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { loginWithDiscord } = useAuth();
+  const { loginWithDiscord, isAuthenticated, isLoading: authLoading } = useAuth();
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated && !authLoading) {
+      navigate('/dashboard');
+    }
+  }, [isAuthenticated, authLoading, navigate]);
 
   // Handle Discord OAuth callback
   useEffect(() => {
@@ -81,6 +88,14 @@ export function Login() {
   const handleDiscordLogin = () => {
     window.location.href = getDiscordOAuthUrl();
   };
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen w-full bg-background flex">
