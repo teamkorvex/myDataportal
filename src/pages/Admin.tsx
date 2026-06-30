@@ -8,7 +8,6 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { 
   Shield, 
-  ArrowLeft, 
   Users, 
   Crown, 
   Ban, 
@@ -16,11 +15,7 @@ import {
   Pencil, 
   Search,
   Lock,
-  LogOut,
-  Check,
-  Mail,
-  Key,
-  Calendar
+  Check
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import type { User } from '@/types';
@@ -48,7 +43,6 @@ export function Admin() {
   const [editEmail, setEditEmail] = useState('');
   const [editIsPremium, setEditIsPremium] = useState(false);
   const [editIsSuspended, setEditIsSuspended] = useState(false);
-  const [successMessage, setSuccessMessage] = useState('');
 
   const isAdmin = user?.username === 'korvex' || user?.username === 'crews';
 
@@ -85,7 +79,6 @@ export function Admin() {
     setEditEmail(userData.email || '');
     setEditIsPremium(userData.isPremium);
     setEditIsSuspended(userData.isSuspended);
-    setSuccessMessage('');
     setIsEditModalOpen(true);
   };
 
@@ -106,12 +99,8 @@ export function Admin() {
     if (Object.keys(updates).length > 0) {
       const success = await updateUserByAdmin(selectedUser.id, updates);
       if (success) {
-        setSuccessMessage('User updated successfully');
         await loadUsers();
-        setTimeout(() => {
-          setIsEditModalOpen(false);
-          setSuccessMessage('');
-        }, 1500);
+        setIsEditModalOpen(false);
       }
     }
   };
@@ -232,7 +221,7 @@ export function Admin() {
                 <div className="col-span-3">Username</div>
                 <div className="col-span-3">Email</div>
                 <div className="col-span-2">Status</div>
-                <div className="col-span-2 text-right">Actions</div>
+                <div className="col-span-4 text-right">Actions</div>
               </div>
 
               {filteredUsers.map((userData) => (
