@@ -1,3 +1,4 @@
+{/* ... existing imports */}
 import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -135,7 +136,7 @@ export function Storage() {
     }
   };
 
-  const handleShare = () => {
+  const handleShare = async () => {
     setShareError('');
     setShareSuccess('');
     
@@ -150,11 +151,10 @@ export function Storage() {
     }
 
     if (editingDoc) {
-      const success = shareDocument(editingDoc.id, shareUsername.trim());
+      const success = await shareDocument(editingDoc.id, shareUsername.trim());
       if (success) {
         setShareSuccess(`Shared with ${shareUsername.trim()}`);
         setShareUsername('');
-        // Update editingDoc to reflect changes
         const updated = getDocumentById(editingDoc.id);
         if (updated) setEditingDoc(updated);
       } else {
@@ -163,9 +163,9 @@ export function Storage() {
     }
   };
 
-  const handleUnshare = (username: string) => {
+  const handleUnshare = async (username: string) => {
     if (editingDoc) {
-      unshareDocument(editingDoc.id, username);
+      await unshareDocument(editingDoc.id, username);
       const updated = getDocumentById(editingDoc.id);
       if (updated) setEditingDoc(updated);
     }
@@ -192,7 +192,6 @@ export function Storage() {
     const result = markdownActions[action](editContent, start, end);
     setEditContent(result.text);
     
-    // Set cursor position after update
     setTimeout(() => {
       textarea.focus();
       textarea.setSelectionRange(result.cursorPos, result.cursorPos);
@@ -220,7 +219,6 @@ export function Storage() {
 
   return (
     <div className="max-w-6xl mx-auto animate-fade-in">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
         <div>
           <h1 className="text-3xl font-bold text-foreground mb-1">Storage</h1>
@@ -252,7 +250,6 @@ export function Storage() {
         </div>
       </div>
 
-      {/* Search bar */}
       <div className="mb-6">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -271,7 +268,6 @@ export function Storage() {
         </div>
       )}
 
-      {/* Documents list */}
       <Card className="bg-card border-border">
         <CardContent className="p-0">
           {filteredDocuments.length === 0 ? (
@@ -286,7 +282,6 @@ export function Storage() {
             </div>
           ) : (
             <div className="divide-y divide-border">
-              {/* Table header */}
               <div className="grid grid-cols-12 gap-4 px-6 py-3 text-xs uppercase tracking-wider text-muted-foreground font-medium">
                 <div className="col-span-5">Title</div>
                 <div className="col-span-3">Updated</div>
@@ -294,7 +289,6 @@ export function Storage() {
                 <div className="col-span-2 text-right">Actions</div>
               </div>
 
-              {/* Documents */}
               {filteredDocuments.map((doc) => (
                 <div 
                   key={doc.id} 
@@ -312,10 +306,6 @@ export function Storage() {
                           className="w-full h-full object-cover"
                         />
                       </button>
-                    ) : doc.type === 'file' ? (
-                      <div className="w-8 h-8 rounded bg-primary/10 flex items-center justify-center flex-shrink-0">
-                        <FileText className="w-4 h-4 text-primary" />
-                      </div>
                     ) : (
                       <div className="w-8 h-8 rounded bg-primary/10 flex items-center justify-center flex-shrink-0">
                         <FileText className="w-4 h-4 text-primary" />
@@ -347,7 +337,6 @@ export function Storage() {
                     )}
                   </div>
                   <div className="col-span-2 flex justify-end gap-1">
-                    {/* View button */}
                     {doc.type === 'text' ? (
                       <Button
                         variant="ghost"
@@ -377,7 +366,6 @@ export function Storage() {
                       </Button>
                     )}
                     
-                    {/* Edit button - only for text docs and owner/shared users */}
                     {doc.type === 'text' && (isDocumentOwner(doc.id) || doc.userId === user?.id || doc.sharedWith.includes(user?.username || '')) && (
                       <Button
                         variant="ghost"
@@ -389,7 +377,6 @@ export function Storage() {
                       </Button>
                     )}
                     
-                    {/* Share button - only for owner */}
                     {isDocumentOwner(doc.id) && (
                       <Button
                         variant="ghost"
@@ -401,7 +388,6 @@ export function Storage() {
                       </Button>
                     )}
                     
-                    {/* Download button for files */}
                     {doc.type === 'file' && (
                       <Button
                         variant="ghost"
@@ -413,7 +399,6 @@ export function Storage() {
                       </Button>
                     )}
                     
-                    {/* Delete button - only for owner */}
                     {isDocumentOwner(doc.id) && (
                       <Button
                         variant="ghost"
@@ -432,7 +417,6 @@ export function Storage() {
         </CardContent>
       </Card>
 
-      {/* Create Document Modal */}
       <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
         <DialogContent className="sm:max-w-2xl bg-card border-border max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -478,15 +462,12 @@ export function Storage() {
                 </div>
                 <Textarea
                   id="content"
-                  placeholder="Enter document content... Use **bold**, *italic*, __underline__, ~~strikethrough~~, `code`"
+                  placeholder="Enter document content..."
                   value={newDocContent}
                   onChange={(e) => setNewDocContent(e.target.value)}
                   className="bg-secondary border-0 min-h-[200px] resize-none rounded-none focus-visible:ring-0"
                 />
               </div>
-              <p className="text-xs text-muted-foreground">
-                Use **bold**, *italic*, __underline__, ~~strikethrough~~, `code` for formatting
-              </p>
             </div>
             <div className="flex justify-end gap-3 pt-4">
               <Button variant="outline" onClick={() => setIsCreateModalOpen(false)}>
@@ -505,7 +486,6 @@ export function Storage() {
         </DialogContent>
       </Dialog>
 
-      {/* Edit Document Modal */}
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
         <DialogContent className="sm:max-w-4xl bg-card border-border max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -528,62 +508,29 @@ export function Storage() {
               />
             </div>
             
-            {/* Rich text editor with toolbar */}
             <div className="space-y-2">
               <Label className="text-xs uppercase tracking-wider text-muted-foreground">
                 Content
               </Label>
               <div className="border border-border rounded-md overflow-hidden">
-                {/* Toolbar */}
                 <div className="flex items-center gap-1 p-2 bg-secondary/50 border-b border-border">
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="h-8 w-8 p-0" 
-                    onClick={() => insertMarkdown('bold')}
-                    title="Bold (**text**)"
-                  >
+                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => insertMarkdown('bold')} title="Bold">
                     <Bold className="w-4 h-4" />
                   </Button>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="h-8 w-8 p-0" 
-                    onClick={() => insertMarkdown('italic')}
-                    title="Italic (*text*)"
-                  >
+                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => insertMarkdown('italic')} title="Italic">
                     <Italic className="w-4 h-4" />
                   </Button>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="h-8 w-8 p-0" 
-                    onClick={() => insertMarkdown('underline')}
-                    title="Underline (__text__)"
-                  >
+                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => insertMarkdown('underline')} title="Underline">
                     <Underline className="w-4 h-4" />
                   </Button>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="h-8 w-8 p-0" 
-                    onClick={() => insertMarkdown('strikethrough')}
-                    title="Strikethrough (~~text~~)"
-                  >
+                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => insertMarkdown('strikethrough')} title="Strikethrough">
                     <Strikethrough className="w-4 h-4" />
                   </Button>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="h-8 w-8 p-0" 
-                    onClick={() => insertMarkdown('code')}
-                    title="Code (`text`)"
-                  >
+                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => insertMarkdown('code')} title="Code">
                     <Code className="w-4 h-4" />
                   </Button>
                 </div>
                 
-                {/* Two-column layout: Editor and Preview */}
                 <div className="grid grid-cols-2 divide-x divide-border">
                   <Textarea
                     ref={editTextareaRef}
@@ -593,7 +540,6 @@ export function Storage() {
                     className="bg-secondary border-0 min-h-[300px] resize-none rounded-none focus-visible:ring-0"
                   />
                   <div className="bg-background p-4 min-h-[300px] overflow-auto">
-                    <p className="text-xs text-muted-foreground mb-2 uppercase tracking-wider">Preview</p>
                     <div 
                       className="prose prose-invert max-w-none"
                       dangerouslySetInnerHTML={{ __html: parseMarkdown(editContent) }}
@@ -601,9 +547,6 @@ export function Storage() {
                   </div>
                 </div>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Use **bold**, *italic*, __underline__, ~~strikethrough~~, `code` for formatting
-              </p>
             </div>
             
             <div className="flex justify-end gap-3 pt-4">
@@ -623,7 +566,6 @@ export function Storage() {
         </DialogContent>
       </Dialog>
 
-      {/* View Document Modal */}
       <Dialog open={isViewModalOpen} onOpenChange={setIsViewModalOpen}>
         <DialogContent className="sm:max-w-2xl bg-card border-border max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -657,7 +599,6 @@ export function Storage() {
         </DialogContent>
       </Dialog>
 
-      {/* Share Document Modal */}
       <Dialog open={isShareModalOpen} onOpenChange={setIsShareModalOpen}>
         <DialogContent className="sm:max-w-md bg-card border-border">
           <DialogHeader>
@@ -685,24 +626,12 @@ export function Storage() {
               </div>
             </div>
 
-            {shareError && (
-              <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm">
-                {shareError}
-              </div>
-            )}
+            {shareError && <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm">{shareError}</div>}
+            {shareSuccess && <div className="p-3 rounded-md bg-green-500/10 text-green-500 text-sm">{shareSuccess}</div>}
 
-            {shareSuccess && (
-              <div className="p-3 rounded-md bg-green-500/10 text-green-500 text-sm">
-                {shareSuccess}
-              </div>
-            )}
-
-            {/* Currently shared with */}
             {editingDoc && editingDoc.sharedWith.length > 0 && (
               <div className="space-y-2">
-                <Label className="text-xs uppercase tracking-wider text-muted-foreground">
-                  Currently shared with
-                </Label>
+                <Label className="text-xs uppercase tracking-wider text-muted-foreground">Currently shared with</Label>
                 <div className="space-y-2">
                   {editingDoc.sharedWith.map((username) => (
                     <div key={username} className="flex items-center justify-between p-2 bg-secondary/50 rounded">
@@ -722,39 +651,25 @@ export function Storage() {
             )}
 
             <div className="flex justify-end pt-4">
-              <Button variant="outline" onClick={() => setIsShareModalOpen(false)}>
-                Done
-              </Button>
+              <Button variant="outline" onClick={() => setIsShareModalOpen(false)}>Done</Button>
             </div>
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* Image Viewer Modal */}
       <Dialog open={isImageModalOpen} onOpenChange={setIsImageModalOpen}>
         <DialogContent className="sm:max-w-4xl bg-card border-border max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-xl font-semibold text-foreground">
-              {viewingDoc?.title}
-            </DialogTitle>
+            <DialogTitle className="text-xl font-semibold text-foreground">{viewingDoc?.title}</DialogTitle>
           </DialogHeader>
           <div className="pt-4">
             {viewingDoc?.fileData && (
-              <img 
-                src={viewingDoc.fileData} 
-                alt={viewingDoc.title}
-                className="max-w-full h-auto rounded-lg mx-auto"
-              />
+              <img src={viewingDoc.fileData} alt={viewingDoc.title} className="max-w-full h-auto rounded-lg mx-auto" />
             )}
             <div className="flex justify-end gap-3 pt-6">
-              <Button variant="outline" onClick={() => setIsImageModalOpen(false)}>
-                Close
-              </Button>
+              <Button variant="outline" onClick={() => setIsImageModalOpen(false)}>Close</Button>
               {viewingDoc && (
-                <Button 
-                  onClick={() => handleDownload(viewingDoc)}
-                  className="bg-primary hover:bg-primary/90"
-                >
+                <Button onClick={() => handleDownload(viewingDoc)} className="bg-primary hover:bg-primary/90">
                   <Download className="w-4 h-4 mr-2" />
                   Download
                 </Button>
