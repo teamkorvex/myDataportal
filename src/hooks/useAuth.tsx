@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { User } from '@/types';
 import { toast } from 'sonner';
@@ -22,7 +22,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const ADMIN_PASSWORD = 'korvex1363N623ncKLA5Ang47674MAk6';
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
