@@ -60,7 +60,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const storedAdminAuth = localStorage.getItem('dropz_admin_auth');
     if (storedAdminAuth) setIsAdminAuthenticated(true);
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session?.user) {
         const profile = await fetchProfile(session.user.id, session.user.email);
         if (profile) {
