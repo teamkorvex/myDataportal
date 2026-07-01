@@ -84,7 +84,7 @@ export function PublicView() {
   }
 
   return (
-    <div className="min-h-screen bg-background grid-background">
+    <div className="min-h-screen bg-zinc-950 grid-background">
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10">
         <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-4">
