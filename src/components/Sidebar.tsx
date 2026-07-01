@@ -25,8 +25,8 @@ export function Sidebar({ className }: SidebarProps) {
   };
 
   const navItems = [
-    { path: '/storage', label: 'Drops', icon: Database },
-    { path: '/dashboard', label: 'myPortal', icon: Home },
+    { path: '/dashboard', label: 'Overview', icon: Home },
+    { path: '/storage', label: 'Storage', icon: Database },
   ];
 
   const bottomItems = [

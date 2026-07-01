@@ -5,6 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { 
   Plus, 
@@ -23,12 +24,16 @@ import {
   Italic,
   Underline,
   Strikethrough,
-  Code
+  Code,
+  Link as LinkIcon,
+  Globe,
+  Lock
 } from 'lucide-react';
 import { useDocuments } from '@/hooks/useDocuments';
 import { useAuth } from '@/hooks/useAuth';
 import { parseMarkdown, markdownActions } from '@/lib/markdown';
 import type { Document } from '@/types';
+import { toast } from 'sonner';
 
 export function Storage() {
   const { user } = useAuth();
@@ -82,6 +87,7 @@ export function Storage() {
       });
       setIsEditModalOpen(false);
       setEditingDoc(null);
+      toast.success('Document updated');
     }
   };
 
@@ -168,6 +174,20 @@ export function Storage() {
       const updated = getDocumentById(editingDoc.id);
       if (updated) setEditingDoc(updated);
     }
+  };
+
+  const handleTogglePublic = async (doc: Document) => {
+    const updated = await updateDocument(doc.id, { isPublic: !doc.isPublic });
+    if (updated) {
+      toast.success(updated.isPublic ? 'Document is now public' : 'Document is now private');
+      if (editingDoc?.id === doc.id) setEditingDoc(updated);
+    }
+  };
+
+  const copyPublicLink = (doc: Document) => {
+    const link = `${window.location.origin}/share/${doc.id}`;
+    navigator.clipboard.writeText(link);
+    toast.success('Public link copied to clipboard');
   };
 
   const handleDownload = (doc: Document) => {
@@ -261,12 +281,6 @@ export function Storage() {
         </div>
       </div>
 
-      {uploadError && (
-        <div className="mb-4 p-3 rounded-md bg-destructive/10 text-destructive text-sm">
-          {uploadError}
-        </div>
-      )}
-
       <Card className="bg-card border-border">
         <CardContent className="p-0">
           {filteredDocuments.length === 0 ? (
@@ -284,8 +298,8 @@ export function Storage() {
               <div className="grid grid-cols-12 gap-4 px-6 py-3 text-xs uppercase tracking-wider text-muted-foreground font-medium">
                 <div className="col-span-5">Title</div>
                 <div className="col-span-3">Updated</div>
-                <div className="col-span-2">Shared</div>
-                <div className="col-span-2 text-right">Actions</div>
+                <div className="col-span-1">Status</div>
+                <div className="col-span-3 text-right">Actions</div>
               </div>
 
               {filteredDocuments.map((doc) => (
@@ -312,14 +326,9 @@ export function Storage() {
                     )}
                     <div className="min-w-0">
                       <p className="font-medium text-foreground truncate">{doc.title}</p>
-                      {doc.type === 'file' && doc.fileSize && (
-                        <p className="text-xs text-muted-foreground">
-                          {formatFileSize(doc.fileSize)}
-                        </p>
-                      )}
                       {doc.userId !== user?.id && (
-                        <Badge variant="secondary" className="text-xs mt-1">
-                          Shared with you
+                        <Badge variant="secondary" className="text-[10px] h-4 mt-1">
+                          Shared
                         </Badge>
                       )}
                     </div>
@@ -327,86 +336,62 @@ export function Storage() {
                   <div className="col-span-3 text-sm text-muted-foreground">
                     {formatDate(doc.updatedAt)}
                   </div>
-                  <div className="col-span-2">
-                    {doc.sharedWith.length > 0 && (
-                      <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                        <Users className="w-3 h-3" />
-                        {doc.sharedWith.length}
-                      </div>
+                  <div className="col-span-1">
+                    {doc.isPublic ? (
+                      <Globe className="w-4 h-4 text-primary" title="Public" />
+                    ) : (
+                      <Lock className="w-4 h-4 text-muted-foreground" title="Private" />
                     )}
                   </div>
-                  <div className="col-span-2 flex justify-end gap-1">
-                    {doc.type === 'text' ? (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                        onClick={() => openViewModal(doc)}
-                      >
-                        <Eye className="w-4 h-4" />
-                      </Button>
-                    ) : doc.fileType?.startsWith('image/') ? (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                        onClick={() => openImageModal(doc)}
-                      >
-                        <Eye className="w-4 h-4" />
-                      </Button>
-                    ) : (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                        onClick={() => handleDownload(doc)}
-                      >
-                        <Download className="w-4 h-4" />
-                      </Button>
-                    )}
-                    
-                    {doc.type === 'text' && (isDocumentOwner(doc.id) || doc.userId === user?.id || doc.sharedWith.includes(user?.username || '')) && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                        onClick={() => openEditModal(doc)}
-                      >
-                        <Pencil className="w-4 h-4" />
-                      </Button>
-                    )}
-                    
-                    {isDocumentOwner(doc.id) && (
+                  <div className="col-span-3 flex justify-end gap-1">
+                    {doc.isPublic && (
                       <Button
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8 text-muted-foreground hover:text-primary"
-                        onClick={() => openShareModal(doc)}
+                        onClick={() => copyPublicLink(doc)}
+                        title="Copy Public Link"
                       >
-                        <Users className="w-4 h-4" />
+                        <LinkIcon className="w-4 h-4" />
                       </Button>
                     )}
                     
-                    {doc.type === 'file' && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                        onClick={() => handleDownload(doc)}
-                      >
-                        <Download className="w-4 h-4" />
-                      </Button>
-                    )}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                      onClick={() => doc.type === 'text' ? openViewModal(doc) : openImageModal(doc)}
+                    >
+                      <Eye className="w-4 h-4" />
+                    </Button>
                     
                     {isDocumentOwner(doc.id) && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                        onClick={() => handleDeleteDocument(doc.id)}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                          onClick={() => openEditModal(doc)}
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-primary"
+                          onClick={() => openShareModal(doc)}
+                        >
+                          <Users className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                          onClick={() => handleDeleteDocument(doc.id)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </>
                     )}
                   </div>
                 </div>
@@ -416,21 +401,16 @@ export function Storage() {
         </CardContent>
       </Card>
 
+      {/* Create Modal */}
       <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
-        <DialogContent className="sm:max-w-2xl bg-card border-border max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-2xl bg-card border-border">
           <DialogHeader>
-            <DialogTitle className="text-xl font-semibold text-foreground flex items-center gap-2">
-              <Plus className="w-5 h-5" />
-              New Document
-            </DialogTitle>
+            <DialogTitle>New Document</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-4">
             <div className="space-y-2">
-              <Label htmlFor="title" className="text-xs uppercase tracking-wider text-muted-foreground">
-                Title
-              </Label>
+              <Label>Title</Label>
               <Input
-                id="title"
                 placeholder="Enter document title"
                 value={newDocTitle}
                 onChange={(e) => setNewDocTitle(e.target.value)}
@@ -438,228 +418,156 @@ export function Storage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="content" className="text-xs uppercase tracking-wider text-muted-foreground">
-                Content
-              </Label>
-              <div className="border border-border rounded-md overflow-hidden">
-                <div className="flex items-center gap-1 p-2 bg-secondary/50 border-b border-border">
-                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0" title="Bold (**text**)">
-                    <Bold className="w-4 h-4" />
-                  </Button>
-                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0" title="Italic (*text*)">
-                    <Italic className="w-4 h-4" />
-                  </Button>
-                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0" title="Underline (__text__)">
-                    <Underline className="w-4 h-4" />
-                  </Button>
-                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0" title="Strikethrough (~~text~~)">
-                    <Strikethrough className="w-4 h-4" />
-                  </Button>
-                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0" title="Code (`text`)">
-                    <Code className="w-4 h-4" />
-                  </Button>
-                </div>
-                <Textarea
-                  id="content"
-                  placeholder="Enter document content..."
-                  value={newDocContent}
-                  onChange={(e) => setNewDocContent(e.target.value)}
-                  className="bg-secondary border-0 min-h-[200px] resize-none rounded-none focus-visible:ring-0"
-                />
-              </div>
+              <Label>Content</Label>
+              <Textarea
+                placeholder="Enter document content..."
+                value={newDocContent}
+                onChange={(e) => setNewDocContent(e.target.value)}
+                className="bg-secondary border-border min-h-[200px]"
+              />
             </div>
             <div className="flex justify-end gap-3 pt-4">
-              <Button variant="outline" onClick={() => setIsCreateModalOpen(false)}>
-                Cancel
-              </Button>
-              <Button 
-                onClick={handleCreateDocument}
-                className="bg-primary hover:bg-primary/90"
-                disabled={!newDocTitle.trim()}
-              >
-                <Save className="w-4 h-4 mr-2" />
-                Save
-              </Button>
+              <Button variant="outline" onClick={() => setIsCreateModalOpen(false)}>Cancel</Button>
+              <Button onClick={handleCreateDocument} disabled={!newDocTitle.trim()}>Save</Button>
             </div>
           </div>
         </DialogContent>
       </Dialog>
 
+      {/* Edit Modal */}
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-        <DialogContent className="sm:max-w-4xl bg-card border-border max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-4xl bg-card border-border">
           <DialogHeader>
-            <DialogTitle className="text-xl font-semibold text-foreground flex items-center gap-2">
-              <Pencil className="w-5 h-5" />
-              Edit Document
-            </DialogTitle>
+            <DialogTitle>Edit Document</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-4">
             <div className="space-y-2">
-              <Label htmlFor="editTitle" className="text-xs uppercase tracking-wider text-muted-foreground">
-                Title
-              </Label>
+              <Label>Title</Label>
               <Input
-                id="editTitle"
-                placeholder="Enter document title"
                 value={editTitle}
                 onChange={(e) => setEditTitle(e.target.value)}
                 className="bg-secondary border-border"
               />
             </div>
-            
             <div className="space-y-2">
-              <Label className="text-xs uppercase tracking-wider text-muted-foreground">
-                Content
-              </Label>
-              <div className="border border-border rounded-md overflow-hidden">
-                <div className="flex items-center gap-1 p-2 bg-secondary/50 border-b border-border">
-                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => insertMarkdown('bold')} title="Bold">
-                    <Bold className="w-4 h-4" />
-                  </Button>
-                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => insertMarkdown('italic')} title="Italic">
-                    <Italic className="w-4 h-4" />
-                  </Button>
-                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => insertMarkdown('underline')} title="Underline">
-                    <Underline className="w-4 h-4" />
-                  </Button>
-                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => insertMarkdown('strikethrough')} title="Strikethrough">
-                    <Strikethrough className="w-4 h-4" />
-                  </Button>
-                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => insertMarkdown('code')} title="Code">
-                    <Code className="w-4 h-4" />
-                  </Button>
-                </div>
-                
-                <div className="grid grid-cols-2 divide-x divide-border">
-                  <Textarea
-                    ref={editTextareaRef}
-                    placeholder="Enter document content..."
-                    value={editContent}
-                    onChange={(e) => setEditContent(e.target.value)}
-                    className="bg-secondary border-0 min-h-[300px] resize-none rounded-none focus-visible:ring-0"
+              <Label>Content</Label>
+              <div className="grid grid-cols-2 gap-4">
+                <Textarea
+                  ref={editTextareaRef}
+                  value={editContent}
+                  onChange={(e) => setEditContent(e.target.value)}
+                  className="bg-secondary border-border min-h-[300px]"
+                />
+                <div className="bg-background p-4 rounded-md border border-border overflow-auto max-h-[300px]">
+                  <div 
+                    className="prose prose-invert max-w-none"
+                    dangerouslySetInnerHTML={{ __html: parseMarkdown(editContent) }}
                   />
-                  <div className="bg-background p-4 min-h-[300px] overflow-auto">
-                    <div 
-                      className="prose prose-invert max-w-none"
-                      dangerouslySetInnerHTML={{ __html: parseMarkdown(editContent) }}
-                    />
-                  </div>
                 </div>
               </div>
             </div>
-            
             <div className="flex justify-end gap-3 pt-4">
-              <Button variant="outline" onClick={() => setIsEditModalOpen(false)}>
-                Cancel
-              </Button>
-              <Button 
-                onClick={handleEditDocument}
-                className="bg-primary hover:bg-primary/90"
-                disabled={!editTitle.trim()}
-              >
-                <Save className="w-4 h-4 mr-2" />
-                Save Changes
-              </Button>
+              <Button variant="outline" onClick={() => setIsEditModalOpen(false)}>Cancel</Button>
+              <Button onClick={handleEditDocument} disabled={!editTitle.trim()}>Save Changes</Button>
             </div>
           </div>
         </DialogContent>
       </Dialog>
 
-      <Dialog open={isViewModalOpen} onOpenChange={setIsViewModalOpen}>
-        <DialogContent className="sm:max-w-2xl bg-card border-border max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-semibold text-foreground">
-              {viewingDoc?.title}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="pt-4">
-            <div 
-              className="prose prose-invert max-w-none bg-secondary/30 p-6 rounded-lg"
-              dangerouslySetInnerHTML={{ __html: viewingDoc ? parseMarkdown(viewingDoc.content) : '' }}
-            />
-            <div className="flex justify-end gap-3 pt-6">
-              <Button variant="outline" onClick={() => setIsViewModalOpen(false)}>
-                Close
-              </Button>
-              {viewingDoc && (isDocumentOwner(viewingDoc.id) || viewingDoc.sharedWith.includes(user?.username || '')) && (
-                <Button 
-                  onClick={() => {
-                    setIsViewModalOpen(false);
-                    if (viewingDoc) openEditModal(viewingDoc);
-                  }}
-                  className="bg-primary hover:bg-primary/90"
-                >
-                  <Pencil className="w-4 h-4 mr-2" />
-                  Edit
-                </Button>
-              )}
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
+      {/* Share Modal */}
       <Dialog open={isShareModalOpen} onOpenChange={setIsShareModalOpen}>
         <DialogContent className="sm:max-w-md bg-card border-border">
           <DialogHeader>
-            <DialogTitle className="text-xl font-semibold text-foreground flex items-center gap-2">
-              <Users className="w-5 h-5" />
-              Share Document
-            </DialogTitle>
+            <DialogTitle>Share Settings</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 pt-4">
-            <div className="space-y-2">
-              <Label htmlFor="shareUsername" className="text-xs uppercase tracking-wider text-muted-foreground">
-                Username to share with
-              </Label>
+          <div className="space-y-6 pt-4">
+            <div className="flex items-center justify-between p-4 bg-secondary/50 rounded-lg">
+              <div className="flex items-center gap-3">
+                <Globe className="w-5 h-5 text-primary" />
+                <div>
+                  <p className="font-medium">Public Access</p>
+                  <p className="text-xs text-muted-foreground">Anyone with the link can view</p>
+                </div>
+              </div>
+              <Switch 
+                checked={editingDoc?.isPublic} 
+                onCheckedChange={() => editingDoc && handleTogglePublic(editingDoc)} 
+              />
+            </div>
+
+            {editingDoc?.isPublic && (
+              <div className="space-y-2">
+                <Label className="text-xs uppercase">Public Link</Label>
+                <div className="flex gap-2">
+                  <Input 
+                    readOnly 
+                    value={`${window.location.origin}/share/${editingDoc.id}`}
+                    className="bg-secondary border-border text-xs"
+                  />
+                  <Button size="sm" onClick={() => editingDoc && copyPublicLink(editingDoc)}>
+                    Copy
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-4">
+              <Label className="text-xs uppercase">Share with User</Label>
               <div className="flex gap-2">
                 <Input
-                  id="shareUsername"
                   placeholder="Enter username"
                   value={shareUsername}
                   onChange={(e) => setShareUsername(e.target.value)}
-                  className="bg-secondary border-border flex-1"
+                  className="bg-secondary border-border"
                 />
-                <Button onClick={handleShare} className="bg-primary hover:bg-primary/90">
-                  Share
-                </Button>
+                <Button onClick={handleShare}>Share</Button>
               </div>
+              {shareError && <p className="text-xs text-destructive">{shareError}</p>}
+              {shareSuccess && <p className="text-xs text-green-500">{shareSuccess}</p>}
             </div>
-
-            {shareError && <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm">{shareError}</div>}
-            {shareSuccess && <div className="p-3 rounded-md bg-green-500/10 text-green-500 text-sm">{shareSuccess}</div>}
 
             {editingDoc && editingDoc.sharedWith.length > 0 && (
               <div className="space-y-2">
-                <Label className="text-xs uppercase tracking-wider text-muted-foreground">Currently shared with</Label>
-                <div className="space-y-2">
-                  {editingDoc.sharedWith.map((username) => (
-                    <div key={username} className="flex items-center justify-between p-2 bg-secondary/50 rounded">
-                      <span className="text-sm text-foreground">{username}</span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
-                        onClick={() => handleUnshare(username)}
-                      >
-                        <X className="w-4 h-4" />
+                <Label className="text-xs uppercase">Currently Shared With</Label>
+                <div className="space-y-1">
+                  {editingDoc.sharedWith.map(u => (
+                    <div key={u} className="flex items-center justify-between p-2 bg-secondary/30 rounded">
+                      <span className="text-sm">{u}</span>
+                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleUnshare(u)}>
+                        <X className="w-3 h-3" />
                       </Button>
                     </div>
                   ))}
                 </div>
               </div>
             )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
-            <div className="flex justify-end pt-4">
-              <Button variant="outline" onClick={() => setIsShareModalOpen(false)}>Done</Button>
+      {/* View Modal */}
+      <Dialog open={isViewModalOpen} onOpenChange={setIsViewModalOpen}>
+        <DialogContent className="sm:max-w-2xl bg-card border-border">
+          <DialogHeader>
+            <DialogTitle>{viewingDoc?.title}</DialogTitle>
+          </DialogHeader>
+          <div className="pt-4">
+            <div 
+              className="prose prose-invert max-w-none bg-secondary/30 p-6 rounded-lg"
+              dangerouslySetInnerHTML={{ __html: viewingDoc ? parseMarkdown(viewingDoc.content) : '' }}
+            />
+            <div className="flex justify-end pt-6">
+              <Button variant="outline" onClick={() => setIsViewModalOpen(false)}>Close</Button>
             </div>
           </div>
         </DialogContent>
       </Dialog>
 
+      {/* Image Modal */}
       <Dialog open={isImageModalOpen} onOpenChange={setIsImageModalOpen}>
-        <DialogContent className="sm:max-w-4xl bg-card border-border max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-4xl bg-card border-border">
           <DialogHeader>
-            <DialogTitle className="text-xl font-semibold text-foreground">{viewingDoc?.title}</DialogTitle>
+            <DialogTitle>{viewingDoc?.title}</DialogTitle>
           </DialogHeader>
           <div className="pt-4">
             {viewingDoc?.fileData && (
@@ -668,7 +576,7 @@ export function Storage() {
             <div className="flex justify-end gap-3 pt-6">
               <Button variant="outline" onClick={() => setIsImageModalOpen(false)}>Close</Button>
               {viewingDoc && (
-                <Button onClick={() => handleDownload(viewingDoc)} className="bg-primary hover:bg-primary/90">
+                <Button onClick={() => handleDownload(viewingDoc)}>
                   <Download className="w-4 h-4 mr-2" />
                   Download
                 </Button>

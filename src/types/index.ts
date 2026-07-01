@@ -21,6 +21,7 @@ export interface Document {
   fileName?: string;
   fileSize?: number;
   sharedWith: string[]; // Array of usernames who have access
+  isPublic: boolean;
   updatedAt: string;
   createdAt: string;
 }

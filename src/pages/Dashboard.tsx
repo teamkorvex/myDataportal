@@ -3,7 +3,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useDocuments } from '@/hooks/useDocuments';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { FileText, Clock, Shield, Database, Crown, Users } from 'lucide-react';
+import { FileText, Clock, Database, Crown, Users } from 'lucide-react';
 import type { Document } from '@/types';
 
 export function Dashboard() {
@@ -14,7 +14,6 @@ export function Dashboard() {
   const [sharedDocsCount, setSharedDocsCount] = useState(0);
 
   useEffect(() => {
-    // Get last login time from localStorage or use current time
     const storedLastLogin = localStorage.getItem('dataportal_last_login');
     if (storedLastLogin) {
       setLastLogin(storedLastLogin);
@@ -24,20 +23,17 @@ export function Dashboard() {
       setLastLogin(now);
     }
 
-    // Update last login on unmount (for next time)
     return () => {
       localStorage.setItem('dataportal_last_login', new Date().toISOString());
     };
   }, []);
 
   useEffect(() => {
-    // Get 5 most recent documents
     const sorted = [...documents].sort((a, b) => 
       new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
     ).slice(0, 5);
     setRecentDocs(sorted);
 
-    // Count shared documents (documents owned by user that are shared with others)
     const shared = documents.filter(doc => 
       doc.userId === user?.id && doc.sharedWith.length > 0
     ).length;
@@ -61,7 +57,6 @@ export function Dashboard() {
 
   return (
     <div className="max-w-6xl mx-auto animate-fade-in">
-      {/* Header with user info */}
       <div className="mb-8 flex items-start justify-between">
         <div>
           <div className="flex items-center gap-3 mb-2">
@@ -95,14 +90,12 @@ export function Dashboard() {
           </p>
         </div>
         
-        {/* Account type badge */}
         <Badge variant="outline" className="text-muted-foreground">
           {user?.authType === 'discord' ? 'Discord Account' : 'Local Account'}
         </Badge>
       </div>
 
-      {/* Stats cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <Card className="bg-card border-border">
           <CardContent className="p-6">
             <div className="flex items-center gap-4">
@@ -146,23 +139,8 @@ export function Dashboard() {
             </div>
           </CardContent>
         </Card>
-
-        <Card className="bg-card border-border">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-lg bg-green-500/10 flex items-center justify-center">
-                <Shield className="w-6 h-6 text-green-500" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Security Status</p>
-                <p className="text-lg font-semibold text-green-500">Protected</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
       </div>
 
-      {/* Recent Activity */}
       <Card className="bg-card border-border">
         <CardContent className="p-6">
           <h2 className="text-xl font-semibold text-foreground mb-6">Recent Activity</h2>
@@ -190,10 +168,6 @@ export function Dashboard() {
                           className="w-full h-full object-cover"
                         />
                       </div>
-                    ) : doc.type === 'file' ? (
-                      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                        <FileText className="w-5 h-5 text-primary" />
-                      </div>
                     ) : (
                       <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
                         <FileText className="w-5 h-5 text-primary" />
@@ -206,10 +180,8 @@ export function Dashboard() {
                         {doc.userId !== user?.id && (
                           <span className="text-primary ml-2">(Shared)</span>
                         )}
-                        {doc.sharedWith.length > 0 && doc.userId === user?.id && (
-                          <span className="text-muted-foreground ml-2">
-                            Shared with {doc.sharedWith.length} user{doc.sharedWith.length > 1 ? 's' : ''}
-                          </span>
+                        {doc.isPublic && (
+                          <Badge variant="outline" className="ml-2 text-[10px] h-4">Public</Badge>
                         )}
                       </p>
                     </div>

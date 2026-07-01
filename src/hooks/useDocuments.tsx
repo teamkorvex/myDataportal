@@ -11,7 +11,6 @@ export function useDocuments() {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Load documents for current user (including shared ones)
   const loadDocuments = useCallback(async () => {
     if (!user) {
       setDocuments([]);
@@ -39,6 +38,7 @@ export function useDocuments() {
       fileName: doc.file_name,
       fileSize: doc.file_size,
       sharedWith: doc.shared_with || [],
+      isPublic: doc.is_public || false,
       updatedAt: doc.updated_at,
       createdAt: doc.created_at,
     }));
@@ -50,7 +50,6 @@ export function useDocuments() {
     loadDocuments();
   }, [loadDocuments]);
 
-  // Filtered documents based on search query
   const filteredDocuments = useMemo(() => {
     if (!searchQuery.trim()) return documents;
     
@@ -75,6 +74,7 @@ export function useDocuments() {
         content,
         type: 'text',
         shared_with: [],
+        is_public: false,
       })
       .select()
       .single();
@@ -91,6 +91,7 @@ export function useDocuments() {
       content: data.content || '',
       type: data.type,
       sharedWith: data.shared_with || [],
+      isPublic: data.is_public || false,
       updatedAt: data.updated_at,
       createdAt: data.created_at,
     };
@@ -107,6 +108,7 @@ export function useDocuments() {
     if (updates.title !== undefined) dbUpdates.title = updates.title;
     if (updates.content !== undefined) dbUpdates.content = updates.content;
     if (updates.sharedWith !== undefined) dbUpdates.shared_with = updates.sharedWith;
+    if (updates.isPublic !== undefined) dbUpdates.is_public = updates.isPublic;
 
     const { data, error } = await supabase
       .from('documents')
@@ -131,12 +133,12 @@ export function useDocuments() {
       fileName: data.file_name,
       fileSize: data.file_size,
       sharedWith: data.shared_with || [],
+      isPublic: data.is_public || false,
       updatedAt: data.updated_at,
       createdAt: data.created_at,
     };
 
     setDocuments(prev => prev.map(d => d.id === id ? updatedDoc : d));
-    toast.success('Document updated successfully');
     return updatedDoc;
   }, [user]);
 
@@ -190,7 +192,7 @@ export function useDocuments() {
 
     const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'text/plain'];
     if (!allowedTypes.includes(file.type)) {
-      toast.error('Only images (JPEG, PNG, GIF, WebP) and TXT files are allowed');
+      toast.error('Only images and TXT files are allowed');
       return null;
     }
 
@@ -217,6 +219,7 @@ export function useDocuments() {
             file_name: file.name,
             file_size: file.size,
             shared_with: [],
+            is_public: false,
           })
           .select()
           .single();
@@ -238,6 +241,7 @@ export function useDocuments() {
           fileName: data.file_name,
           fileSize: data.file_size,
           sharedWith: data.shared_with || [],
+          isPublic: data.is_public || false,
           updatedAt: data.updated_at,
           createdAt: data.created_at,
         };

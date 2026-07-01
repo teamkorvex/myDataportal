@@ -8,6 +8,7 @@ import { Storage } from '@/pages/Storage';
 import { Settings } from '@/pages/Settings';
 import { Admin } from '@/pages/Admin';
 import { AuthCallback } from '@/pages/AuthCallback';
+import { PublicView } from '@/pages/PublicView';
 import { NotFound } from '@/pages/NotFound';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Toaster } from '@/components/ui/sonner';
@@ -22,6 +23,7 @@ function App() {
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
+            <Route path="/share/:id" element={<PublicView />} />
             
             {/* Protected dashboard routes */}
             <Route element={<DashboardLayout />}>
