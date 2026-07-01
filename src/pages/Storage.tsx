@@ -205,169 +205,197 @@ export function Storage() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto animate-fade-in">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground mb-1">Storage</h1>
-          <p className="text-muted-foreground">Create and manage your documents</p>
-        </div>
-        <div className="flex gap-3">
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileUpload}
-            accept=".txt,image/jpeg,image/png,image/gif,image/webp"
-            className="hidden"
-          />
-          <Button
-            variant="outline"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isUploading}
-          >
-            <Upload className="w-4 h-4 mr-2" />
-            {isUploading ? 'Uploading...' : 'Upload'}
-          </Button>
-          <Button 
-            onClick={() => setIsCreateModalOpen(true)}
-            className="bg-primary hover:bg-primary/90"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            New Document
-          </Button>
-        </div>
+  <div className="max-w-6xl mx-auto animate-fade-in">
+    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+      <div>
+        <h1 className="text-3xl font-bold text-foreground mb-1">Storage</h1>
+        <p className="text-muted-foreground">Create and manage your documents</p>
       </div>
 
-      <div className="mb-6">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder="Search documents..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 bg-secondary border-border"
-          />
-        </div>
-      </div>
+      <div className="flex gap-3">
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleFileUpload}
+          accept=".txt,image/jpeg,image/png,image/gif,image/webp"
+          className="hidden"
+        />
 
-      <Card className="bg-card border-border">
-        <CardContent className="p-0">
-          {filteredDocuments.length === 0 ? (
-            <div className="text-center py-16">
-              <Database className="w-16 h-16 text-muted-foreground/30 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-foreground mb-1">
-                {searchQuery ? 'No matching documents' : 'No documents yet'}
-              </h3>
-              <p className="text-muted-foreground">
-                {searchQuery ? 'Try a different search term' : 'Create your first document to get started'}
-              </p>
+        <Button
+          variant="outline"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={isUploading}
+        >
+          <Upload className="w-4 h-4 mr-2" />
+          {isUploading ? "Uploading..." : "Upload"}
+        </Button>
+
+        <Button
+          onClick={() => setIsCreateModalOpen(true)}
+          className="bg-primary hover:bg-primary/90"
+        >
+          <Plus className="w-4 h-4 mr-2" />
+          New Document
+        </Button>
+      </div>
+    </div>
+
+    <div className="mb-6">
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <Input
+          placeholder="Search documents..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-10 bg-secondary border-border"
+        />
+      </div>
+    </div>
+
+    <Card className="bg-card border-border">
+      <CardContent className="p-0">
+        {filteredDocuments.length === 0 ? (
+          <div className="text-center py-16">
+            <Database className="w-16 h-16 text-muted-foreground/30 mx-auto mb-4" />
+
+            <h3 className="text-lg font-medium text-foreground mb-1">
+              {searchQuery ? "No matching documents" : "No documents yet"}
+            </h3>
+
+            <p className="text-muted-foreground">
+              {searchQuery
+                ? "Try a different search term"
+                : "Create your first document to get started"}
+            </p>
+          </div>
+        ) : (
+          <div className="divide-y divide-border">
+            <div className="grid grid-cols-12 gap-4 px-6 py-3 text-xs uppercase tracking-wider text-muted-foreground font-medium">
+              <div className="col-span-5">Title</div>
+              <div className="col-span-3">Updated</div>
+              <div className="col-span-1">Status</div>
+              <div className="col-span-3 text-right">Actions</div>
             </div>
-          ) : (
-            <div className="divide-y divide-border">
-              <div className="grid grid-cols-12 gap-4 px-6 py-3 text-xs uppercase tracking-wider text-muted-foreground font-medium">
-                <div className="col-span-5">Title</div>
-                <div className="col-span-3">Updated</div>
-                <div className="col-span-1">Status</div>
-                <div className="col-span-3 text-right">Actions</div>
-              </div>
 
-              {filteredDocuments.map((doc) => (
-                <div 
-                  key={doc.id} 
-                  className="grid grid-cols-12 gap-4 px-6 py-4 items-center hover:bg-secondary/50 transition-colors"
-                >
-                  <div className="col-span-5 flex items-center gap-3">
-                    {doc.type === 'file' && doc.fileType?.startsWith('image/') ? (
-                      <button 
-                        onClick={() => openImageModal(doc)}
-                        className="w-8 h-8 rounded bg-primary/10 flex items-center justify-center overflow-hidden flex-shrink-0 hover:ring-2 hover:ring-primary transition-all"
-                      >
-                        <img 
-                          src={doc.fileData} 
-                          alt={doc.title}
-                          className="w-full h-full object-cover"
-                        />
-                      </button>
-                    ) : (
-                      <div className="w-8 h-8 rounded bg-primary/10 flex items-center justify-center flex-shrink-0">
-                        <FileText className="w-4 h-4 text-primary" />
-                      </div>
-                    )}
-                    <div className="min-w-0">
-                      <p className="font-medium text-foreground truncate">{doc.title}</p>
-                      {doc.userId !== user?.id && (
-                        <Badge variant="secondary" className="text-[10px] h-4 mt-1">
-                          Shared
-                        </Badge>
-                      )}
+            {filteredDocuments.map((doc) => (
+              <div
+                key={doc.id}
+                className="grid grid-cols-12 gap-4 px-6 py-4 items-center hover:bg-secondary/50 transition-colors"
+              >
+                <div className="col-span-5 flex items-center gap-3">
+                  {doc.type === "file" &&
+                  doc.fileType?.startsWith("image/") ? (
+                    <button
+                      onClick={() => openImageModal(doc)}
+                      className="w-8 h-8 rounded bg-primary/10 flex items-center justify-center overflow-hidden flex-shrink-0 hover:ring-2 hover:ring-primary transition-all"
+                    >
+                      <img
+                        src={doc.fileData}
+                        alt={doc.title}
+                        className="w-full h-full object-cover"
+                      />
+                    </button>
+                  ) : (
+                    <div className="w-8 h-8 rounded bg-primary/10 flex items-center justify-center flex-shrink-0">
+                      <FileText className="w-4 h-4 text-primary" />
                     </div>
-                  </div>
-                  <div className="col-span-3 text-sm text-muted-foreground">
-                    {formatDate(doc.updatedAt)}
-                  </div>
-                  <div className="col-span-1">
-                    {doc.isPublic ? (
-                      <span title="Public">   <Globe className="w-4 h-4 text-primary" /> </span>
-                    ) : (
-                      <Lock className="w-4 h-4 text-muted-foreground" title="Private" />
+                  )}
+
+                  <div className="min-w-0">
+                    <p className="font-medium text-foreground truncate">
+                      {doc.title}
+                    </p>
+
+                    {doc.userId !== user?.id && (
+                      <Badge
+                        variant="secondary"
+                        className="text-[10px] h-4 mt-1"
+                      >
+                        Shared
+                      </Badge>
                     )}
                   </div>
-                  <div className="col-span-3 flex justify-end gap-1">
-                    {doc.isPublic && (
+                </div>
+
+                <div className="col-span-3 text-sm text-muted-foreground">
+                  {formatDate(doc.updatedAt)}
+                </div>
+
+                <div className="col-span-1">
+                  {doc.isPublic ? (
+                    <span title="Public">
+                      <Globe className="w-4 h-4 text-primary" />
+                    </span>
+                  ) : (
+                    <span title="Private">
+                      <Lock className="w-4 h-4 text-muted-foreground" />
+                    </span>
+                  )}
+                </div>
+
+                <div className="col-span-3 flex justify-end gap-1">
+                  {doc.isPublic && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-muted-foreground hover:text-primary"
+                      onClick={() => copyPublicLink(doc)}
+                      title="Copy Public Link"
+                    >
+                      <LinkIcon className="w-4 h-4" />
+                    </Button>
+                  )}
+
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                    onClick={() =>
+                      doc.type === "text"
+                        ? openViewModal(doc)
+                        : openImageModal(doc)
+                    }
+                  >
+                    <Eye className="w-4 h-4" />
+                  </Button>
+
+                  {isDocumentOwner(doc.id) && (
+                    <>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                        onClick={() => openEditModal(doc)}
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </Button>
+
                       <Button
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8 text-muted-foreground hover:text-primary"
-                        onClick={() => copyPublicLink(doc)}
-                        title="Copy Public Link"
+                        onClick={() => openShareModal(doc)}
                       >
-                        <LinkIcon className="w-4 h-4" />
+                        <Users className="w-4 h-4" />
                       </Button>
-                    )}
-                    
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                      onClick={() => doc.type === 'text' ? openViewModal(doc) : openImageModal(doc)}
-                    >
-                      <Eye className="w-4 h-4" />
-                    </Button>
-                    
-                    {isDocumentOwner(doc.id) && (
-                      <>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                          onClick={() => openEditModal(doc)}
-                        >
-                          <Pencil className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-muted-foreground hover:text-primary"
-                          onClick={() => openShareModal(doc)}
-                        >
-                          <Users className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                          onClick={() => handleDeleteDocument(doc.id)}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </>
-                    )}
-                  </div>
+
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                        onClick={() => handleDeleteDocument(doc.id)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </>
+                  )}
                 </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
 
       {/* Create Modal */}
       <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
