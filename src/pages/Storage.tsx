@@ -25,7 +25,7 @@ import {
 } from "lucide-react";
 import { useDocuments } from '@/hooks/useDocuments';
 import { useAuth } from '@/hooks/useAuth';
-import { parseMarkdown, markdownActions } from '@/lib/markdown';
+import { parseMarkdown } from '@/lib/markdown';
 import type { Document } from '@/types';
 import { toast } from 'sonner';
 
@@ -58,7 +58,6 @@ export function Storage() {
   const [editTitle, setEditTitle] = useState('');
   const [editContent, setEditContent] = useState('');
   const [isUploading, setIsUploading] = useState(false);
-  const [uploadError, setUploadError] = useState('');
   const [shareError, setShareError] = useState('');
   const [shareSuccess, setShareSuccess] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -121,12 +120,10 @@ export function Storage() {
     if (!file) return;
 
     setIsUploading(true);
-    setUploadError('');
 
     try {
       await uploadFile(file);
     } catch (error: any) {
-      setUploadError(error.message || 'Failed to upload file');
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) {
@@ -195,22 +192,6 @@ export function Storage() {
     }
   };
 
-  const insertMarkdown = (action: keyof typeof markdownActions) => {
-    if (!editTextareaRef.current) return;
-    
-    const textarea = editTextareaRef.current;
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    
-    const result = markdownActions[action](editContent, start, end);
-    setEditContent(result.text);
-    
-    setTimeout(() => {
-      textarea.focus();
-      textarea.setSelectionRange(result.cursorPos, result.cursorPos);
-    }, 0);
-  };
-
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-GB', {
@@ -221,13 +202,6 @@ export function Storage() {
       hour: '2-digit',
       minute: '2-digit',
     });
-  };
-
-  const formatFileSize = (bytes?: number) => {
-    if (!bytes) return '';
-    if (bytes < 1024) return bytes + ' B';
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
   };
 
   return (
@@ -332,7 +306,7 @@ export function Storage() {
                   </div>
                   <div className="col-span-1">
                     {doc.isPublic ? (
-                      <Globe className="w-4 h-4 text-primary" title="Public" />
+                      <span title="Public">   <Globe className="w-4 h-4 text-primary" /> </span>
                     ) : (
                       <Lock className="w-4 h-4 text-muted-foreground" title="Private" />
                     )}
