@@ -2,6 +2,8 @@ import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Sidebar } from './Sidebar';
 import { cn } from '@/lib/utils';
+import { useEffect } from 'react';
+import { toast } from 'sonner';
 
 interface DashboardLayoutProps {
   className?: string;
@@ -9,6 +11,12 @@ interface DashboardLayoutProps {
 
 export function DashboardLayout({ className }: DashboardLayoutProps) {
   const { isAuthenticated, isLoading } = useAuth();
+
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      toast.error("You must sign in first.");
+    }
+  }, [isLoading, isAuthenticated]);
 
   if (isLoading) {
     return (
@@ -19,7 +27,7 @@ export function DashboardLayout({ className }: DashboardLayoutProps) {
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/" replace />;
   }
 
   return (

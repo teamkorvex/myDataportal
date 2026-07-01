@@ -7,6 +7,8 @@ import { Dashboard } from '@/pages/Dashboard';
 import { Storage } from '@/pages/Storage';
 import { Settings } from '@/pages/Settings';
 import { Admin } from '@/pages/Admin';
+import { AuthCallback } from '@/pages/AuthCallback';
+import { NotFound } from '@/pages/NotFound';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Toaster } from '@/components/ui/sonner';
 
@@ -19,6 +21,7 @@ function App() {
             {/* Public routes */}
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/auth/callback" element={<AuthCallback />} />
             
             {/* Protected dashboard routes */}
             <Route element={<DashboardLayout />}>
@@ -30,11 +33,11 @@ function App() {
             {/* Admin route */}
             <Route path="/admin" element={<Admin />} />
             
-            {/* Catch all */}
-            <Route path="*" element={<Navigate to="/" replace />} />
+            {/* Catch all - Custom 404 */}
+            <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
-        <Toaster />
+        <Toaster position="top-center" richColors />
       </AuthProvider>
     </ThemeProvider>
   );

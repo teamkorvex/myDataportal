@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import type { User, DiscordUser } from '@/types';
+import type { User } from '@/types';
 import { toast } from 'sonner';
 
 interface AuthContextType {
@@ -8,7 +8,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   isAdminAuthenticated: boolean;
-  loginWithDiscord: (discordUser?: DiscordUser, token?: string) => Promise<{ success: boolean; message?: string }>;
+  loginWithDiscord: () => Promise<void>;
   logout: () => Promise<void>;
   updateUser: (updates: Partial<User>) => Promise<void>;
   verifyAdminPassword: (password: string) => boolean;
@@ -60,8 +60,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const storedAdminAuth = localStorage.getItem('dropz_admin_auth');
     if (storedAdminAuth) setIsAdminAuthenticated(true);
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setIsLoading(true);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session?.user) {
         const profile = await fetchProfile(session.user.id, session.user.email);
         if (profile) {
@@ -75,7 +74,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } else {
           setUser({
             id: session.user.id,
-            username: session.user.user_metadata.full_name || 'User',
+            username: session.user.user_metadata.full_name || session.user.user_metadata.custom_claims?.global_name || 'User',
             email: session.user.email,
             createdAt: session.user.created_at,
             authType: 'discord',
@@ -93,24 +92,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  const loginWithDiscord = useCallback(async (discordUser?: DiscordUser, _token?: string) => {
-    if (discordUser) {
-      // Manual login flow from callback
-      const profile = await fetchProfile(discordUser.id, discordUser.email);
-      if (profile?.isSuspended) return { success: false, message: 'Account suspended' };
-      return { success: true };
-    }
-
+  const loginWithDiscord = useCallback(async () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'discord',
-      options: { redirectTo: window.location.origin + '/dashboard' },
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+      },
     });
     
     if (error) {
       toast.error(error.message);
-      return { success: false, message: error.message };
     }
-    return { success: true };
   }, []);
 
   const logout = useCallback(async () => {
@@ -227,8 +219,4 @@ export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) throw new Error('useAuth must be used within an AuthProvider');
   return context;
-}
-
-export function getDiscordOAuthUrl(): string {
-  return 'https://discord.com/oauth2/authorize?client_id=1521231361174933605&response_type=code&redirect_uri=https%3A%2F%2Fautgttuxjboppqjmpkfk.supabase.co%2Fauth%2Fv1%2Fcallback&scope=identify';
 }
