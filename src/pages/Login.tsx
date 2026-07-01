@@ -2,11 +2,11 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Sparkles, ArrowLeft, Loader2 } from 'lucide-react';
-import { useAuth, getDiscordOAuthUrl } from '@/hooks/useAuth';
+import { useAuth } from '@/hooks/useAuth';
 
 export function Login() {
   const navigate = useNavigate();
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, loginWithDiscord } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
 
   // Redirect if already authenticated
@@ -19,7 +19,7 @@ export function Login() {
   const handleDiscordLogin = async () => {
     setIsLoading(true);
     try {
-      window.location.href = getDiscordOAuthUrl();
+      await loginWithDiscord();
     } catch (err) {
       console.error('Login error:', err);
       setIsLoading(false);
