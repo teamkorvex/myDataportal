@@ -19,11 +19,14 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import type { User } from '@/types';
+import { toast } from 'sonner';
 
 export function Admin() {
   const navigate = useNavigate();
   const { 
     user, 
+    isAuthenticated,
+    isLoading,
     isAdminAuthenticated, 
     verifyAdminPassword, 
     adminLogout,
@@ -43,6 +46,13 @@ export function Admin() {
   const [editEmail, setEditEmail] = useState('');
   const [editIsPremium, setEditIsPremium] = useState(false);
   const [editIsSuspended, setEditIsSuspended] = useState(false);
+
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      toast.error("You must sign in first.");
+      navigate('/', { replace: true });
+    }
+  }, [isLoading, isAuthenticated, navigate]);
 
   const isAdmin = user?.username === 'korvex' || user?.username === 'crews';
 
@@ -126,6 +136,18 @@ export function Admin() {
     u.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
     (u.email && u.email.toLowerCase().includes(searchQuery.toLowerCase()))
   );
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return null;
+  }
 
   if (!isAdmin) {
     return (
