@@ -7,28 +7,22 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { 
-  Plus, 
-  FileText, 
-  Pencil, 
-  Trash2, 
+import {
+  Plus,
+  FileText,
+  Pencil,
+  Trash2,
   Database,
   Upload,
-  Save,
   Search,
   Users,
   X,
   Download,
   Eye,
-  Bold,
-  Italic,
-  Underline,
-  Strikethrough,
-  Code,
   Link as LinkIcon,
   Globe,
-  Lock
-} from 'lucide-react';
+  Lock,
+} from "lucide-react";
 import { useDocuments } from '@/hooks/useDocuments';
 import { useAuth } from '@/hooks/useAuth';
 import { parseMarkdown, markdownActions } from '@/lib/markdown';
